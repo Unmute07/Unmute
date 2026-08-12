@@ -1,0 +1,63 @@
+"use client";
+
+import { useMemo } from "react";
+
+import { Header } from "@/components/dashboard/header";
+import { Sidebar } from "@/components/dashboard/sidebar";
+import { WelcomeCard } from "@/components/dashboard/welcome-card";
+import { QuickActions } from "@/components/dashboard/quick-actions";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useAuth } from "@/hooks/useAuth";
+
+function DashboardSkeleton() {
+  return (
+    <div className="flex flex-col gap-6">
+      <Skeleton className="h-40 rounded-2xl" />
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        {Array.from({ length: 3 }).map((_, index) => (
+          <Skeleton key={index} className="h-24 rounded-2xl" />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export default function DashboardPage() {
+  const { user, loading } = useAuth();
+
+  const displayName = useMemo(() => {
+    if (!user?.displayName) return "there";
+    return user.displayName.split(" ")[0];
+  }, [user]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background text-foreground">
+        <div className="flex min-h-screen flex-col lg:flex-row">
+          <Sidebar />
+          <div className="flex flex-1 flex-col">
+            <Header title="Dashboard" subtitle="Your interview prep command center" />
+            <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-8 px-4 py-6 sm:px-6 lg:px-8">
+              <DashboardSkeleton />
+            </main>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-background text-foreground">
+      <div className="flex min-h-screen flex-col lg:flex-row">
+        <Sidebar />
+        <div className="flex flex-1 flex-col">
+          <Header title="Dashboard" subtitle="Your interview prep command center" />
+          <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-8 px-4 py-6 sm:px-6 lg:px-8">
+            <WelcomeCard name={displayName} />
+            <QuickActions />
+          </main>
+        </div>
+      </div>
+    </div>
+  );
+}

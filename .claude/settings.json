@@ -1,0 +1,42 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx eslint *)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:3000/)",
+      "Bash(firebase --version)",
+      "Bash(firebase projects:list)",
+      "Bash(firebase deploy *)",
+      "Bash(npm install *)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:3000/interviews/new)",
+      "Bash(kill 16237)",
+      "Bash(nohup npm run dev)",
+      "Bash(curl -s -X POST http://localhost:3000/api/audio -H 'Content-Type: application/json' -d '{ *)",
+      "Bash(curl -s -o /dev/null -w \"HTTP %{http_code}\\\\n\" \"https://lxxuaibpfhpkbjlkfkvy.supabase.co/storage/v1/object/public/interview-audio/test-user/test-interview/q1.webm\")",
+      "Bash(curl -s -X DELETE https://lxxuaibpfhpkbjlkfkvy.supabase.co/storage/v1/object/interview-audio/test-user/test-interview/q1.webm -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx4eHVhaWJwZmhwa2JqbGtma3Z5Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4NjEyNDAzMSwiZXhwIjoyMTAxNzAwMDMxfQ.zM42jBAZyik9MAmY2H6JhBjL-rObSpbfBb1u1q_QKag' -H 'apikey: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx4eHVhaWJwZmhwa2JqbGtma3Z5Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4NjEyNDAzMSwiZXhwIjoyMTAxNzAwMDMxfQ.zM42jBAZyik9MAmY2H6JhBjL-rObSpbfBb1u1q_QKag')",
+      "Bash(kill 18220)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" localhost:3000)",
+      "Bash(curl -s localhost:3000)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:3000/dashboard)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:3000/dashboard)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:3000/progress)",
+      "Bash(npx --yes playwright --version)",
+      "Bash(npx --yes playwright install chromium)",
+      "Bash(npm init *)",
+      "Bash(npx playwright *)",
+      "Bash(node shot.mjs)",
+      "Bash(rm -rf /private/tmp/claude-501/-Users-shivanigupta-unmute/825d8792-0300-45c2-9748-5b9a6f484952/scratchpad/node_modules /private/tmp/claude-501/-Users-shivanigupta-unmute/825d8792-0300-45c2-9748-5b9a6f484952/scratchpad/package*.json /private/tmp/claude-501/-Users-shivanigupta-unmute/825d8792-0300-45c2-9748-5b9a6f484952/scratchpad/shot.mjs /private/tmp/claude-501/-Users-shivanigupta-unmute/825d8792-0300-45c2-9748-5b9a6f484952/scratchpad/*.png 2>/dev/null; echo cleaned)",
+      "Bash(gh auth *)",
+      "Bash(gh repo *)",
+      "Bash(find . -maxdepth 2 -iname \".env*\" -not -path \"./node_modules/*\" 2>/dev/null; echo \"---\"; git check-ignore -v .env.local 2>&1; echo \"---ssh---\"; ls -la ~/.ssh 2>/dev/null | head; echo \"---git config---\"; git config --get user.name; git config --get user.email; git config --get remote.origin.url)",
+      "Read(//Users/shivanigupta/.ssh/**)",
+      "Bash(git config *)",
+      "Bash(ssh -T git@github.com -o StrictHostKeyChecking=accept-new)",
+      "Bash(git ls-remote *)",
+      "Bash(git remote *)",
+      "Bash(git add *)"
+    ],
+    "additionalDirectories": [
+      "/private/tmp/claude-501/-Users-shivanigupta-unmute/825d8792-0300-45c2-9748-5b9a6f484952/scratchpad/node_modules"
+    ]
+  }
+}

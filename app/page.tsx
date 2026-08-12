@@ -1,69 +1,121 @@
-import Image from "next/image";
+"use client";
+
+import Link from "next/link";
+import { motion } from "framer-motion";
+import { ArrowRight, CheckCircle2, Sparkles } from "lucide-react";
+
+import { Button } from "@/components/ui/button";
+import { LogoMark } from "@/components/shared/logo-mark";
 
 export default function Home() {
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <div className="min-h-screen bg-background text-foreground">
+      <header className="sticky top-0 z-50 border-b border-border/70 bg-background/85 backdrop-blur-xl">
+        <div className="page-container flex h-16 items-center justify-between">
+          <Link href="/" className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary text-white shadow-sm">
+              <LogoMark />
+            </div>
+            <span className="text-lg font-semibold tracking-tight">Unmute</span>
+          </Link>
+          <div className="flex items-center gap-3">
+            <Link href="/login" className="hidden text-sm font-medium text-muted-foreground transition-colors hover:text-foreground sm:inline-flex">
+              Login
+            </Link>
+            <Button asChild className="primary-button h-10 rounded-full px-4">
+              <Link href="/signup">Get Started</Link>
+            </Button>
+          </div>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+      </header>
+
+      <main>
+        <section className="section-container px-4 pt-16 sm:pt-20 lg:pt-24">
+          <div>
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.45 }}
+              className="max-w-2xl"
+            >
+              <div className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-accent px-3 py-1 text-sm font-medium text-primary">
+                <Sparkles className="h-4 w-4" />
+                AI-Powered Interview Coach
+              </div>
+              <h1 className="hero-title mt-6">
+                Find your voice.
+                <br />
+                Ace every interview.
+              </h1>
+              <p className="hero-subtitle">
+                Practice with realistic questions, get nuanced AI feedback, and build confidence with a guided plan tailored to the roles you want.
+              </p>
+              <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+                <Button asChild className="primary-button h-12 rounded-full px-6">
+                  <Link href="/signup">
+                    Start Practicing <ArrowRight className="ml-2 h-4 w-4" />
+                  </Link>
+                </Button>
+              </div>
+              <div className="mt-8 flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4 text-primary" />
+                  Tailored interview prep
+                </div>
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4 text-primary" />
+                  Instant AI guidance
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        </section>
+
+        <section id="pricing" className="section-container">
+          <motion.div
+            initial={{ opacity: 0, y: 18 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, amount: 0.2 }}
+            transition={{ duration: 0.35 }}
+            className="rounded-[2rem] border border-primary/20 bg-gradient-to-br from-primary/8 via-background to-accent/60 p-8 text-center shadow-sm sm:p-12"
           >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
+            <p className="text-sm font-semibold uppercase tracking-[0.24em] text-primary">Ready to begin?</p>
+            <h2 className="hero-title mt-4 text-3xl sm:text-4xl">
+              Turn preparation into momentum.
+            </h2>
+            <p className="hero-subtitle mx-auto mt-4 text-base">
+              Create your account and start practicing with a smarter, calmer path to interview confidence.
+            </p>
+            <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
+              <Button asChild className="primary-button h-12 rounded-full px-6">
+                <Link href="/signup">Create Account</Link>
+              </Button>
+            </div>
+          </motion.div>
+        </section>
       </main>
+
+      <footer id="contact" className="border-t border-border/70 bg-background/80">
+        <div className="page-container grid gap-10 py-12 sm:grid-cols-2">
+          <div>
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary text-white">
+                <LogoMark />
+              </div>
+              <span className="text-lg font-semibold tracking-tight">Unmute</span>
+            </div>
+            <p className="mt-4 text-sm leading-7 text-muted-foreground">
+              AI-powered interview preparation for candidates who want to feel ready and perform with confidence.
+            </p>
+          </div>
+          <div className="text-right">
+            <h3 className="text-sm font-semibold text-foreground">Contact</h3>
+            <ul className="mt-4 space-y-2 text-sm text-muted-foreground">
+              <li><a href="mailto:hello@unmute.ai" className="transition-colors hover:text-foreground">hello@unmute.ai</a></li>
+            </ul>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }
