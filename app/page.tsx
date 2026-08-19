@@ -96,6 +96,58 @@ export default function Home() {
       </main>
 
       <footer id="contact" className="border-t border-border/70 bg-background/80">
+        <div className="page-container border-b border-border/70 py-12">
+          <div className="grid gap-8 lg:grid-cols-[minmax(0,16rem)_minmax(0,1fr)] lg:gap-12">
+            <div>
+              <p className="text-sm font-semibold uppercase tracking-[0.24em] text-primary">Meet the founder</p>
+              <div className="mt-5 flex items-center gap-4">
+                <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-accent text-lg font-semibold text-primary">
+                  AT
+                </div>
+                <div>
+                  <p className="text-base font-semibold text-foreground">Aarush Tadi</p>
+                  <p className="text-sm text-muted-foreground">Founder, Unmute</p>
+                  <p className="text-sm text-muted-foreground">EuroSchool Whitefield</p>
+                </div>
+              </div>
+            </div>
+            <div className="space-y-4 text-sm leading-7 text-muted-foreground">
+              <p>
+                I&apos;m Aarush Tadi, a high school student at EuroSchool Whitefield. Unmute didn&apos;t start as a business
+                idea — it started with my parents sharing their life story with me: where they came from, what they had to
+                struggle through, and how they built the life that now funds my endless demand for new clothes.
+              </p>
+              <p>
+                My dad grew up in Jaipur, a Tier 2 city. My mom grew up in Tonk, a Tier 3 city. Both households had barely
+                any money. My dad walked to school at 5:30 every morning because there was no other way they could afford
+                to get there, and both of my parents were brought up in Hindi-medium schools. My mom&apos;s father refused to
+                fund her education even after she secured a top rank in her batch — it took weeks of convincing before he
+                finally took out a loan.
+              </p>
+              <p className="border-l-2 border-primary/40 pl-4 text-base font-medium leading-7 text-foreground">
+                Talent is everywhere, but access isn&apos;t.
+              </p>
+              <p>
+                Despite everything working against them, they both became engineers and went on to hold senior positions at
+                Fortune 500 companies like Qualcomm and Intel. Their story stayed with me. My parents had no interview
+                practice, no mentorship, and none of the guidance that builds real confidence before you walk into a room.
+                They had to figure it all out on their own, the hard way.
+              </p>
+              <p>
+                This isn&apos;t just about students in Tier 2 and Tier 3 cities. It&apos;s about anyone facing a similar
+                struggle — students in Tier 1 cities with few or no resources they can afford, and those who have migrated
+                from smaller towns to big cities and are still finding their footing.
+              </p>
+              <p>
+                That&apos;s why I built Unmute: a bilingual, AI-powered interview coaching platform that gives people the
+                access my parents never had. If two people from Jaipur and Tonk could build the careers they did without any
+                of that support, I believe giving people that support can take them even further. What my parents
+                accomplished can happen on a much larger scale — and Unmute is how I want to make that possible.
+              </p>
+            </div>
+          </div>
+        </div>
+
         <div className="page-container grid gap-10 py-12 sm:grid-cols-2">
           <div>
             <div className="flex items-center gap-3">
