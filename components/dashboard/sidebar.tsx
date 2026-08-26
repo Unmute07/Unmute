@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutGrid, MessageSquareText, Settings, Sparkles, Trophy } from "lucide-react";
+import { LayoutGrid, Mail, MessageSquareText, Phone, Settings, Sparkles, Trophy } from "lucide-react";
 
 import { LogoMark } from "@/components/shared/logo-mark";
 import { cn } from "@/lib/utils";
@@ -68,6 +68,27 @@ export function Sidebar() {
         })}
       </nav>
 
+      <div className="mt-auto rounded-[1.25rem] border border-border/70 bg-accent/40 p-4">
+        <p className="text-sm font-medium text-foreground">Contact</p>
+        <p className="mt-2 text-sm font-semibold text-foreground">Aarush Tadi</p>
+        <p className="text-sm text-muted-foreground">Founder, Unmute</p>
+        <div className="mt-3 space-y-2">
+          <a
+            href="mailto:aarush.tadi2212@gmail.com"
+            className="flex items-center gap-2 text-sm font-medium text-primary transition-colors hover:text-primary/80"
+          >
+            <Mail className="h-4 w-4" />
+            aarush.tadi2212@gmail.com
+          </a>
+          <a
+            href="tel:+919352468510"
+            className="flex items-center gap-2 text-sm font-medium text-primary transition-colors hover:text-primary/80"
+          >
+            <Phone className="h-4 w-4" />
+            9352468510
+          </a>
+        </div>
+      </div>
     </aside>
   );
 }

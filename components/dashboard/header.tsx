@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { Bell, LogOut, User as UserIcon } from "lucide-react";
+import { LogOut, User as UserIcon } from "lucide-react";
 
 import { MobileSidebar } from "@/components/dashboard/mobile-sidebar";
+import { ThemeToggle } from "@/components/shared/theme-toggle";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -44,9 +45,7 @@ export function Header({ title = "Dashboard", subtitle }: HeaderProps) {
         </div>
 
         <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" className="rounded-full" aria-label="Notifications">
-            <Bell className="h-4 w-4" />
-          </Button>
+          <ThemeToggle />
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon" className="rounded-full" aria-label="Account menu">

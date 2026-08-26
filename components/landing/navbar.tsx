@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 
 import { Button } from "@/components/ui/button";
 import { LogoMark } from "@/components/shared/logo-mark";
+import { ThemeToggle } from "@/components/shared/theme-toggle";
 
 type NavbarLink = {
   label: string;
@@ -55,6 +56,7 @@ export function Navbar({
         </nav>
 
         <div className="flex items-center gap-3">
+          <ThemeToggle />
           <Link href={loginHref} className="hidden text-sm font-medium text-muted-foreground transition-colors hover:text-foreground sm:inline-flex">
             Login
           </Link>

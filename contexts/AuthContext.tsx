@@ -7,7 +7,6 @@ import type { User } from "firebase/auth";
 import {
   resetPassword,
   signInWithEmailAndPasswordEmail,
-  signInWithGoogle,
   signOut,
   signUpWithEmailAndPassword,
   subscribeToAuthState,
@@ -17,20 +16,25 @@ import type { UserProfileDocument } from "@/types/user";
 
 type AuthContextValue = {
   user: User | null;
+  userVersion: number;
   loading: boolean;
   profile: UserProfileDocument | null;
   profileLoading: boolean;
   signup: (email: string, password: string, displayName: string) => Promise<void>;
   login: (email: string, password: string) => Promise<void>;
-  googleLogin: () => Promise<void>;
   logout: () => Promise<void>;
   forgotPassword: (email: string) => Promise<void>;
+  refreshUser: () => void;
 };
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
+  // Firebase's `updateProfile` mutates the User object in place rather than
+  // replacing it, so React sees the same reference and skips re-rendering.
+  // Bumping this alongside setUser forces consumers keyed on it to notice.
+  const [userVersion, setUserVersion] = useState(0);
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState<UserProfileDocument | null>(null);
   const [profileLoading, setProfileLoading] = useState(true);
@@ -77,24 +81,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => unsubscribe();
   }, [user]);
 
+  const refreshUser = useCallback(() => {
+    setUserVersion((v) => v + 1);
+  }, []);
+
   const signup = useCallback(async (email: string, password: string, displayName: string) => {
     const currentUser = await signUpWithEmailAndPassword(email, password, displayName);
     setUser(currentUser);
-    console.log("[auth] sign-up succeeded, redirecting to /dashboard");
+    refreshUser();
     router.push("/dashboard");
-  }, [router]);
+  }, [router, refreshUser]);
 
   const login = useCallback(async (email: string, password: string) => {
     const currentUser = await signInWithEmailAndPasswordEmail(email, password);
     setUser(currentUser);
-    console.log("[auth] login succeeded, redirecting to /dashboard");
-    router.push("/dashboard");
-  }, [router]);
-
-  const googleLogin = useCallback(async () => {
-    const currentUser = await signInWithGoogle();
-    setUser(currentUser);
-    console.log("[auth] Google login succeeded, redirecting to /dashboard");
     router.push("/dashboard");
   }, [router]);
 
@@ -111,16 +111,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const value = useMemo<AuthContextValue>(
     () => ({
       user,
+      userVersion,
       loading,
       profile,
       profileLoading,
       signup,
       login,
-      googleLogin,
       logout,
       forgotPassword,
+      refreshUser,
     }),
-    [loading, user, profile, profileLoading, googleLogin, logout, forgotPassword, login, signup]
+    [loading, user, userVersion, profile, profileLoading, logout, forgotPassword, login, signup, refreshUser]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

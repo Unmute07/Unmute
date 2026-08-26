@@ -23,12 +23,15 @@ function DashboardSkeleton() {
 }
 
 export default function DashboardPage() {
-  const { user, loading } = useAuth();
+  const { user, userVersion, loading } = useAuth();
 
   const displayName = useMemo(() => {
     if (!user?.displayName) return "there";
     return user.displayName.split(" ")[0];
-  }, [user]);
+    // userVersion isn't read directly, but Firebase mutates `user` in place on
+    // profile updates, so it's the only thing that changes when displayName does.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, userVersion]);
 
   if (loading) {
     return (

@@ -6,6 +6,7 @@ import { ArrowRight, CheckCircle2, Sparkles } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { LogoMark } from "@/components/shared/logo-mark";
+import { ThemeToggle } from "@/components/shared/theme-toggle";
 
 export default function Home() {
   return (
@@ -19,6 +20,7 @@ export default function Home() {
             <span className="text-lg font-semibold tracking-tight">Unmute</span>
           </Link>
           <div className="flex items-center gap-3">
+            <ThemeToggle />
             <Link href="/login" className="hidden text-sm font-medium text-muted-foreground transition-colors hover:text-foreground sm:inline-flex">
               Login
             </Link>

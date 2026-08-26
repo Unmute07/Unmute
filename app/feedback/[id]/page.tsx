@@ -92,6 +92,7 @@ export default function FeedbackPage() {
   const liveScores = useMemo(() => computeFeedbackScores(feedbackItems), [feedbackItems]);
   const liveDeliveryScores = useMemo(() => computeDeliveryScores(feedbackItems), [feedbackItems]);
   const recordedItems = useMemo(() => feedbackItems.filter((item) => item.audioUrl), [feedbackItems]);
+  const hasAnswers = useMemo(() => feedbackItems.some((item) => item.answer.trim().length > 0), [feedbackItems]);
 
   const scores = cachedFeedback ?? liveScores;
   const { overallScore = 0, communicationScore = 0, technicalScore = 0, behavioralScore = 0, leadershipScore = 0, problemSolvingScore = 0, confidenceScore = 0 } = scores;
@@ -150,40 +151,58 @@ export default function FeedbackPage() {
         }
 
         if (items.length > 0) {
-          const evaluations: FeedbackItem[] = await Promise.all(
-            items.map(async (item) => {
-              const delivery = item.audioUrl ? await evaluateDelivery(item.question, item.audioUrl) : undefined;
+          // Evaluated sequentially, not via Promise.all — firing every question's
+          // delivery + answer evaluation at once easily bursts past Groq's per-minute
+          // rate limit, which no amount of per-call retrying can recover from in time.
+          const evaluations: FeedbackItem[] = [];
+          for (const item of items) {
+            const delivery = item.audioUrl ? await evaluateDelivery(item.question, item.audioUrl) : undefined;
 
-              if (!item.answer) {
-                return { ...item, delivery, evaluation: undefined };
-              }
+            if (!item.answer) {
+              evaluations.push({ ...item, delivery, evaluation: undefined });
+              continue;
+            }
 
-              const result = await evaluateAnswer(item.question, item.answer);
-              return { ...item, delivery, evaluation: result.success ? result.data : undefined };
-            })
-          );
+            const result = await evaluateAnswer(item.question, item.answer);
+            evaluations.push({ ...item, delivery, evaluation: result.success ? result.data : undefined });
+          }
 
           setFeedbackItems(evaluations);
           setEvaluationsReady(true);
 
-          const summaryResult = await generateInterviewSummary({
-            company: data.company,
-            role: data.role,
-            experienceLevel: data.experienceLevel,
-            interviewType: data.interviewType,
-            jobDescription: data.jobDescription,
-            status: data.status,
-            createdAt: data.createdAt,
-            updatedAt: data.updatedAt,
-          });
+          const hasAnswers = items.some((item) => item.answer.trim().length > 0);
 
-          if (summaryResult.success) {
-            setSummary(summaryResult.data);
-          }
+          if (!hasAnswers) {
+            // No transcript exists for any question — there's nothing for the
+            // summary/study-plan prompts to work with, so asking the model
+            // would only produce fabricated, plausible-sounding boilerplate.
+            setSummary({
+              summary: "No spoken answers were detected in this session, so we couldn't evaluate your responses.",
+              strengths: [],
+              weaknesses: [],
+              nextSteps: ["Check your microphone and re-record your answers to get real feedback."],
+            });
+            setStudyPlan({ weeklyPlan: [], plan: [] });
+          } else {
+            const summaryResult = await generateInterviewSummary({
+              company: data.company,
+              role: data.role,
+              experienceLevel: data.experienceLevel,
+              interviewType: data.interviewType,
+              jobDescription: data.jobDescription,
+              status: data.status,
+              createdAt: data.createdAt,
+              updatedAt: data.updatedAt,
+            });
 
-          const studyPlanResult = await generateStudyPlan((summaryResult.success ? summaryResult.data.summary : "Improve interview delivery") + "\n" + (evaluations[0]?.evaluation?.feedback ?? ""));
-          if (studyPlanResult.success) {
-            setStudyPlan(studyPlanResult.data);
+            if (summaryResult.success) {
+              setSummary(summaryResult.data);
+            }
+
+            const studyPlanResult = await generateStudyPlan((summaryResult.success ? summaryResult.data.summary : "Improve interview delivery") + "\n" + (evaluations[0]?.evaluation?.feedback ?? ""));
+            if (studyPlanResult.success) {
+              setStudyPlan(studyPlanResult.data);
+            }
           }
         }
 
@@ -375,7 +394,10 @@ export default function FeedbackPage() {
               </CardHeader>
               <CardContent>
                 <ul className="space-y-3 text-sm leading-7 text-muted-foreground">
-                  {(summary?.strengths?.length ? summary.strengths : ["Clear structure", "Strong intent", "Calm pacing"]).map((item) => (
+                  {(summary?.strengths?.length
+                    ? summary.strengths
+                    : [hasAnswers ? "We couldn't identify specific strengths from this session." : "No spoken answer was recorded, so there's nothing to assess yet."]
+                  ).map((item) => (
                     <li key={item} className="rounded-2xl border border-border/70 bg-background/60 px-3 py-3">
                       {item}
                     </li>
@@ -391,7 +413,10 @@ export default function FeedbackPage() {
               </CardHeader>
               <CardContent>
                 <ul className="space-y-3 text-sm leading-7 text-muted-foreground">
-                  {(summary?.weaknesses?.length ? summary.weaknesses : ["Add more examples", "Reduce filler language", "Be more concise"]).map((item) => (
+                  {(summary?.weaknesses?.length
+                    ? summary.weaknesses
+                    : [hasAnswers ? "We couldn't identify specific weaknesses from this session." : "No spoken answer was recorded, so there's nothing to assess yet."]
+                  ).map((item) => (
                     <li key={item} className="rounded-2xl border border-border/70 bg-background/60 px-3 py-3">
                       {item}
                     </li>
@@ -408,7 +433,14 @@ export default function FeedbackPage() {
                 <CardDescription>Practical coaching guidance.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-3">
-                {(studyPlan?.plan?.length ? studyPlan.plan : [{ title: "Refine storytelling", description: "Use STAR framing for your examples.", priority: "high" as const }]).map((item) => (
+                {(studyPlan?.plan?.length
+                  ? studyPlan.plan
+                  : [
+                      hasAnswers
+                        ? { title: "No suggestions yet", description: "We couldn't generate coaching guidance from this session.", priority: "low" as const }
+                        : { title: "Record an answer first", description: "No spoken answer was detected, so there's no coaching guidance to give.", priority: "low" as const },
+                    ]
+                ).map((item) => (
                   <div key={item.title} className="rounded-2xl border border-border/70 bg-background/60 p-4">
                     <div className="flex items-center justify-between gap-2">
                       <p className="font-semibold text-foreground">{item.title}</p>
@@ -429,7 +461,10 @@ export default function FeedbackPage() {
               </CardHeader>
               <CardContent>
                 <ul className="space-y-3 text-sm leading-7 text-muted-foreground">
-                  {(summary?.nextSteps?.length ? summary.nextSteps : ["Practice your opening answer", "Review one difficult question", "Revisit your impact stories"]).map((item) => (
+                  {(summary?.nextSteps?.length
+                    ? summary.nextSteps
+                    : [hasAnswers ? "Re-attempt this interview to get personalized next steps." : "Check your microphone and re-record your answers to get real feedback."]
+                  ).map((item) => (
                     <li key={item} className="rounded-2xl border border-border/70 bg-background/60 px-3 py-3">
                       {item}
                     </li>
@@ -450,7 +485,7 @@ export default function FeedbackPage() {
           </CardHeader>
           <CardContent>
             <div className="rounded-2xl border border-border/70 bg-background/60 p-4 text-sm leading-8 text-muted-foreground">
-              {feedbackItems[0]?.improvedAnswer ?? "Practice a stronger answer with a clear opening, evidence, and impact statement."}
+              {feedbackItems[0]?.improvedAnswer || (hasAnswers ? "Practice a stronger answer with a clear opening, evidence, and impact statement." : "No spoken answer was recorded for this question.")}
             </div>
           </CardContent>
         </Card>

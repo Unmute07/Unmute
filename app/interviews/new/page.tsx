@@ -85,17 +85,14 @@ export default function NewInterviewPage() {
     setError(null);
 
     try {
-      const analysisResult = await analyzeJobDescription(values.jobDescription);
+      const [analysisResult, questionsResult] = await Promise.all([
+        analyzeJobDescription(values.jobDescription),
+        generateInterviewQuestions(values.jobDescription, values.role, values.experienceLevel, values.interviewType),
+      ]);
+
       if (!analysisResult.success) {
         throw new Error(analysisResult.error);
       }
-
-      const questionsResult = await generateInterviewQuestions(
-        values.jobDescription,
-        values.role,
-        values.experienceLevel,
-        values.interviewType,
-      );
       if (!questionsResult.success) {
         throw new Error(questionsResult.error);
       }

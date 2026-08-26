@@ -1,4 +1,4 @@
-import { GoogleGenAI } from "@google/genai";
+import Groq, { toFile } from "groq-sdk";
 
 export type AiResult<T> =
   | { success: true; data: T }
@@ -70,45 +70,107 @@ export interface InterviewRecordLike {
   updatedAt?: string | Date | { seconds: number; nanoseconds: number } | { toDate: () => Date };
 }
 
-let geminiClient: GoogleGenAI | null = null;
+let groqClient: Groq | null = null;
 
-function getGeminiClient() {
-  if (geminiClient) {
-    return geminiClient;
+function getGroqClient() {
+  if (groqClient) {
+    return groqClient;
   }
 
-  const apiKey = process.env.GEMINI_API_KEY;
+  const apiKey = process.env.GROQ_API_KEY;
   if (!apiKey) {
-    throw new Error("GEMINI_API_KEY is not configured.");
+    throw new Error("GROQ_API_KEY is not configured.");
   }
 
-  geminiClient = new GoogleGenAI({ apiKey });
-  return geminiClient;
+  groqClient = new Groq({ apiKey });
+  return groqClient;
+}
+
+const TEXT_MODEL = "openai/gpt-oss-120b";
+const TRANSCRIPTION_MODEL = "whisper-large-v3-turbo";
+
+const RETRYABLE_STATUSES = new Set([429, 500, 502, 503, 504]);
+const MAX_ATTEMPTS = 3;
+const RETRY_DELAY_MS = 1000;
+
+function getErrorStatus(error: unknown): number | undefined {
+  return error && typeof error === "object" && "status" in error ? (error as { status?: number }).status : undefined;
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function withRetry<T>(fn: () => Promise<T>): Promise<T> {
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    try {
+      return await fn();
+    } catch (error) {
+      const status = getErrorStatus(error);
+      const isLastAttempt = attempt === MAX_ATTEMPTS;
+      console.error(`[ai] Groq call failed (attempt ${attempt}/${MAX_ATTEMPTS})`, status ?? error);
+      if (isLastAttempt || !status || !RETRYABLE_STATUSES.has(status)) {
+        throw error;
+      }
+      // 429s are rate limits on a rolling per-minute window — a short backoff rarely
+      // clears them, so wait meaningfully longer than the 5xx "try again shortly" case.
+      const delay = status === 429 ? 5000 * attempt : RETRY_DELAY_MS * attempt;
+      await sleep(delay);
+    }
+  }
+  throw new Error("Unreachable");
 }
 
 async function generateContent(prompt: string): Promise<string> {
-  const client = getGeminiClient();
-  const response = await client.models.generateContent({
-    model: "gemini-flash-latest",
-    contents: prompt,
-  });
+  const client = getGroqClient();
+  const response = await withRetry(() =>
+    client.chat.completions.create({
+      model: TEXT_MODEL,
+      messages: [{ role: "user", content: prompt }],
+      temperature: 0.7,
+    }),
+  );
 
-  return response.text?.trim() ?? "";
+  return response.choices[0]?.message?.content?.trim() ?? "";
 }
 
-async function generateContentFromAudio(prompt: string, audioBase64: string, mimeType: string): Promise<string> {
-  const client = getGeminiClient();
-  const response = await client.models.generateContent({
-    model: "gemini-flash-latest",
-    contents: [
-      {
-        role: "user",
-        parts: [{ text: prompt }, { inlineData: { mimeType, data: audioBase64 } }],
-      },
-    ],
-  });
+const MIME_TO_EXTENSION: Record<string, string> = {
+  "audio/webm": "webm",
+  "audio/mp4": "mp4",
+  "audio/mpeg": "mp3",
+  "audio/mp3": "mp3",
+  "audio/wav": "wav",
+  "audio/wave": "wav",
+  "audio/x-wav": "wav",
+  "audio/ogg": "ogg",
+  "audio/m4a": "m4a",
+  "audio/x-m4a": "m4a",
+};
 
-  return response.text?.trim() ?? "";
+interface Transcript {
+  text: string;
+  durationSeconds: number | null;
+}
+
+async function transcribeAudio(audioBase64: string, mimeType: string): Promise<Transcript> {
+  const client = getGroqClient();
+  const buffer = Buffer.from(audioBase64, "base64");
+  const extension = MIME_TO_EXTENSION[mimeType] ?? "webm";
+  const file = await toFile(buffer, `audio.${extension}`, { type: mimeType });
+
+  const response = await withRetry(() =>
+    client.audio.transcriptions.create({
+      file,
+      model: TRANSCRIPTION_MODEL,
+      response_format: "verbose_json",
+    }),
+  );
+
+  const raw = response as unknown as { text: string; duration?: number };
+  return {
+    text: raw.text?.trim() ?? "",
+    durationSeconds: typeof raw.duration === "number" ? raw.duration : null,
+  };
 }
 
 function getFriendlyErrorMessage(error: unknown): string {
@@ -149,17 +211,19 @@ function parseJsonResponse<T>(rawResponse: string): T | null {
   }
 }
 
-async function runGeminiJson<T>(prompt: string): Promise<AiResult<T>> {
+async function runGroqJson<T>(prompt: string): Promise<AiResult<T>> {
   try {
     const rawResponse = await generateContent(prompt);
     const parsed = parseJsonResponse<T>(rawResponse);
 
     if (!parsed) {
+      console.error("[ai] Groq returned unparseable JSON", rawResponse.slice(0, 500));
       return { success: false, error: "The AI model returned an unexpected response format." };
     }
 
     return { success: true, data: parsed };
   } catch (error) {
+    console.error("[ai] runGroqJson failed", getFriendlyErrorMessage(error), error);
     return { success: false, error: getFriendlyErrorMessage(error) };
   }
 }
@@ -177,7 +241,7 @@ export async function analyzeJobDescription(jobDescription: string): Promise<AiR
 Job description:
 ${jobDescription}`;
 
-  return runGeminiJson<JobAnalysis>(prompt);
+  return runGroqJson<JobAnalysis>(prompt);
 }
 
 export async function generateInterviewQuestions(
@@ -200,7 +264,7 @@ Interview type: ${interviewType}
 Job description:
 ${jobDescription}`;
 
-  return runGeminiJson<InterviewQuestionSet>(prompt);
+  return runGroqJson<InterviewQuestionSet>(prompt);
 }
 
 export async function evaluateAnswer(question: string, answer: string): Promise<AiResult<AnswerEvaluation>> {
@@ -228,7 +292,7 @@ ${question}
 Answer:
 ${answer}`;
 
-  return runGeminiJson<AnswerEvaluation>(prompt);
+  return runGroqJson<AnswerEvaluation>(prompt);
 }
 
 export async function generateStudyPlan(feedback: string): Promise<AiResult<StudyPlan>> {
@@ -254,7 +318,7 @@ export async function generateStudyPlan(feedback: string): Promise<AiResult<Stud
 Feedback:
 ${feedback}`;
 
-  return runGeminiJson<StudyPlan>(prompt);
+  return runGroqJson<StudyPlan>(prompt);
 }
 
 export async function generateInterviewSummary(interview: InterviewRecordLike): Promise<AiResult<InterviewSummary>> {
@@ -269,7 +333,7 @@ export async function generateInterviewSummary(interview: InterviewRecordLike): 
 Interview data:
 ${JSON.stringify(interview, null, 2)}`;
 
-  return runGeminiJson<InterviewSummary>(prompt);
+  return runGroqJson<InterviewSummary>(prompt);
 }
 
 export interface DeliveryEvaluation {
@@ -288,7 +352,23 @@ export async function evaluateSpokenDelivery(
   audioBase64: string,
   mimeType: string,
 ): Promise<AiResult<DeliveryEvaluation>> {
-  const prompt = `You are a speech and presentation coach. Listen to this recorded interview answer for the question below and assess ONLY the spoken delivery — pacing, filler words ("um", "like", "you know", etc.), pronunciation/articulation clarity, and vocal confidence (steadiness of tone, hesitation). Do not judge the correctness or content of the answer. Return valid JSON only matching this schema (scores 0-100):
+  try {
+    const transcript = await transcribeAudio(audioBase64, mimeType);
+
+    if (!transcript.text) {
+      return { success: false, error: "Could not transcribe the recorded answer. Please try again." };
+    }
+
+    const wordCount = transcript.text.split(/\s+/).filter(Boolean).length;
+    const measuredWpm =
+      transcript.durationSeconds && transcript.durationSeconds > 0
+        ? Math.round(wordCount / (transcript.durationSeconds / 60))
+        : null;
+
+    // Groq's Whisper transcription only returns text (plus duration), not audio
+    // prosody — so clarity/vocal-confidence here are best-effort estimates from
+    // transcript disfluencies and the measured pace, not true acoustic analysis.
+    const prompt = `You are a speech and presentation coach. You are given a transcript of a recorded interview answer (not the audio itself) along with its measured words-per-minute. Assess the spoken delivery — pacing, filler words ("um", "like", "you know", etc.), and estimate clarity and vocal confidence from disfluencies, repetitions, and sentence structure in the transcript. Do not judge the correctness or content of the answer. Return valid JSON only matching this schema (scores 0-100):
 {
   "paceAssessment": "too slow|slightly slow|good pace|slightly fast|too fast",
   "estimatedWordsPerMinute": 0,
@@ -300,18 +380,28 @@ export async function evaluateSpokenDelivery(
   "improvementTips": ["string"]
 }
 
-Question: ${question}`;
+Question: ${question}
 
-  try {
-    const rawResponse = await generateContentFromAudio(prompt, audioBase64, mimeType);
+Measured words per minute: ${measuredWpm ?? "unknown"}
+
+Transcript:
+${transcript.text}`;
+
+    const rawResponse = await generateContent(prompt);
     const parsed = parseJsonResponse<DeliveryEvaluation>(rawResponse);
 
     if (!parsed) {
+      console.error("[ai] Groq returned unparseable JSON (spoken delivery)", rawResponse.slice(0, 500));
       return { success: false, error: "The AI model returned an unexpected response format." };
+    }
+
+    if (measuredWpm) {
+      parsed.estimatedWordsPerMinute = measuredWpm;
     }
 
     return { success: true, data: parsed };
   } catch (error) {
+    console.error("[ai] evaluateSpokenDelivery failed", getFriendlyErrorMessage(error), error);
     return { success: false, error: getFriendlyErrorMessage(error) };
   }
 }

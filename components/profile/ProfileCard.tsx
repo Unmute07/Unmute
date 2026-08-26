@@ -9,6 +9,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { useAuth } from "@/hooks/useAuth";
 import { updateDisplayNameAndPhoto } from "@/services/user.service";
 import type { UserProfileDocument } from "@/types/user";
 
@@ -33,6 +34,7 @@ function getInitials(name: string): string {
 }
 
 export function ProfileCard({ user, profile }: ProfileCardProps) {
+  const { refreshUser } = useAuth();
   const [displayName, setDisplayName] = useState(user.displayName ?? profile?.displayName ?? "");
   const [saving, setSaving] = useState(false);
 
@@ -45,6 +47,9 @@ export function ProfileCard({ user, profile }: ProfileCardProps) {
     setSaving(true);
     try {
       await updateDisplayNameAndPhoto(user, displayName.trim());
+      // updateProfile mutates the Firebase User object in place, so context
+      // consumers (e.g. the header) won't re-render without this nudge.
+      refreshUser();
       toast.success("Profile updated");
     } catch {
       toast.error("Unable to update your profile right now.");

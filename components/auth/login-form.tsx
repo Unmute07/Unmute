@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Globe, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -24,8 +24,7 @@ type LoginFormProps = {
 };
 
 export function LoginForm({ onSuccess }: LoginFormProps) {
-  const { login, googleLogin, forgotPassword, loading } = useAuth();
-  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+  const { login, forgotPassword, loading } = useAuth();
   const [isResetLoading, setIsResetLoading] = useState(false);
 
   const {
@@ -46,20 +45,6 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
     } catch (error) {
       console.error("[auth] login failed", isFirebaseAuthError(error) ? error.code : error);
       toast.error(describeAuthError(error));
-    }
-  };
-
-  const handleGoogle = async () => {
-    try {
-      setIsGoogleLoading(true);
-      await googleLogin();
-      toast.success("Signed in with Google.");
-      onSuccess?.();
-    } catch (error) {
-      console.error("[auth] Google sign-in failed", isFirebaseAuthError(error) ? error.code : error);
-      toast.error(describeAuthError(error));
-    } finally {
-      setIsGoogleLoading(false);
     }
   };
 
@@ -112,23 +97,6 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
       <Button type="submit" className="primary-button h-12 w-full rounded-full" disabled={isSubmitting || loading}>
         {isSubmitting || loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
         Login
-      </Button>
-
-      <div className="flex items-center gap-3">
-        <div className="h-px flex-1 bg-border" />
-        <span className="text-xs font-medium uppercase tracking-[0.24em] text-muted-foreground">Or</span>
-        <div className="h-px flex-1 bg-border" />
-      </div>
-
-      <Button
-        type="button"
-        variant="outline"
-        className="secondary-button h-12 w-full rounded-full"
-        onClick={handleGoogle}
-        disabled={isGoogleLoading || loading}
-      >
-        {isGoogleLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Globe className="mr-2 h-4 w-4" />}
-        Continue with Google
       </Button>
     </form>
   );
