@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Sparkles } from "lucide-react";
+import { Mail, Phone, Sparkles } from "lucide-react";
 
 import { LogoMark } from "@/components/shared/logo-mark";
 
@@ -46,6 +46,28 @@ export function AuthLayout({
                 <p className="mt-4 text-base leading-7 text-white/80">
                   Practice realistic interview questions, receive actionable AI feedback, and build momentum with every session.
                 </p>
+              </div>
+            </div>
+
+            <div className="relative z-10 rounded-[1.25rem] border border-white/20 bg-white/10 p-4 backdrop-blur-sm">
+              <p className="text-sm font-medium text-white">Contact</p>
+              <p className="mt-2 text-sm font-semibold text-white">Aarush Tadi</p>
+              <p className="text-sm text-white/70">Founder, Unmute</p>
+              <div className="mt-3 space-y-2">
+                <a
+                  href="mailto:aarush.tadi2212@gmail.com"
+                  className="flex items-center gap-2 text-sm font-medium text-white transition-colors hover:text-white/80"
+                >
+                  <Mail className="h-4 w-4" />
+                  aarush.tadi2212@gmail.com
+                </a>
+                <a
+                  href="tel:+919352468510"
+                  className="flex items-center gap-2 text-sm font-medium text-white transition-colors hover:text-white/80"
+                >
+                  <Phone className="h-4 w-4" />
+                  9352468510
+                </a>
               </div>
             </div>
           </div>
