@@ -41,7 +41,8 @@ export function Footer({
     {
       title: "Contact",
       links: [
-        { label: "hello@unmute.ai", href: "mailto:hello@unmute.ai" },
+        { label: "aarush.tadi2212@gmail.com", href: "mailto:aarush.tadi2212@gmail.com" },
+        { label: "9352468510", href: "tel:+919352468510" },
         { label: "LinkedIn", href: "#" },
         { label: "X", href: "#" },
       ],

@@ -165,7 +165,8 @@ export default function Home() {
           <div className="text-right">
             <h3 className="text-sm font-semibold text-foreground">Contact</h3>
             <ul className="mt-4 space-y-2 text-sm text-muted-foreground">
-              <li><a href="mailto:hello@unmute.ai" className="transition-colors hover:text-foreground">hello@unmute.ai</a></li>
+              <li><a href="mailto:aarush.tadi2212@gmail.com" className="transition-colors hover:text-foreground">aarush.tadi2212@gmail.com</a></li>
+              <li><a href="tel:+919352468510" className="transition-colors hover:text-foreground">9352468510</a></li>
             </ul>
           </div>
         </div>
