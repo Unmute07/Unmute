@@ -69,6 +69,10 @@ export default function InterviewPracticePage() {
   const interviewId = params?.id;
   const isComplete = currentIndex >= questions.length;
   const isPracticeMode = interview?.mode === "practice";
+  // Shown to the user instead of questions.length — the pre-generated set starts
+  // smaller than what was selected, growing as live follow-ups get added, which
+  // reads as a confusing "3 of 3" when the user actually picked 5.
+  const displayTotal = interview?.targetQuestionCount || questions.length;
 
   useEffect(() => {
     if (!user?.uid || !interviewId) {
@@ -354,7 +358,7 @@ export default function InterviewPracticePage() {
               />
             ) : (
               <>
-                <QuestionCard question={activeQuestion} index={currentIndex} total={questions.length} />
+                <QuestionCard question={activeQuestion} index={currentIndex} total={displayTotal} />
                 <AnswerInput
                   value={answers[activeQuestion.id] ?? ""}
                   onChange={(value) => setAnswers((previous) => ({ ...previous, [activeQuestion.id]: value }))}
@@ -405,7 +409,7 @@ export default function InterviewPracticePage() {
           </div>
 
           <ProgressSidebar
-            total={questions.length}
+            total={displayTotal}
             answeredCount={Object.values(answers).filter(Boolean).length}
             timeElapsed={timeElapsed}
             company={interview?.company}
