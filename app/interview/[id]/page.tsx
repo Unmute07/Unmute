@@ -16,10 +16,10 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/hooks/useAuth";
-import { evaluateAnswer, generateFollowUpQuestion } from "@/services/ai-client";
+import { evaluateAnswer, generateFollowUpQuestion, generateInterviewQuestions } from "@/services/ai-client";
 import type { AnswerEvaluation } from "@/services/ai.service";
 import { uploadAnswerAudio } from "@/services/audio-client";
-import { normalizeInterviewDoc } from "@/services/interview.service";
+import { buildInterviewQuestions, normalizeInterviewDoc } from "@/services/interview.service";
 import type { InterviewDocument, InterviewQuestion } from "@/types/interview";
 
 const defaultQuestions: InterviewQuestion[] = [
@@ -62,6 +62,7 @@ export default function InterviewPracticePage() {
   const [timeElapsed, setTimeElapsed] = useState(0);
   const [evaluatingQuestionId, setEvaluatingQuestionId] = useState<string | null>(null);
   const [isGeneratingFollowUp, setIsGeneratingFollowUp] = useState(false);
+  const [isFillingQuestions, setIsFillingQuestions] = useState(false);
   const [firedFollowUpQuestionIds, setFiredFollowUpQuestionIds] = useState<Set<string>>(new Set());
   const autosaveTimer = useRef<number | null>(null);
   const originalQuestionsRef = useRef<InterviewQuestion[] | null>(null);
@@ -211,11 +212,16 @@ export default function InterviewPracticePage() {
     }
   };
 
-  const handleSkip = () => {
-    if (currentIndex < questions.length - 1) {
+  const handleSkip = async () => {
+    let effectiveQuestions = questions;
+    if (currentIndex === effectiveQuestions.length - 1) {
+      effectiveQuestions = await maybeFillRemainingQuestions(effectiveQuestions);
+    }
+
+    if (currentIndex < effectiveQuestions.length - 1) {
       setCurrentIndex((value) => value + 1);
     } else {
-      setCurrentIndex(questions.length);
+      setCurrentIndex(effectiveQuestions.length);
     }
   };
 
@@ -277,8 +283,62 @@ export default function InterviewPracticePage() {
     }
   };
 
+  // If a session reaches its last currently-loaded question without having grown to
+  // the selected total (e.g. answers were skipped, so no live follow-ups fired to fill
+  // that headroom), top it up with fresh, non-follow-up questions so the session still
+  // delivers the number of questions the user actually picked.
+  const maybeFillRemainingQuestions = async (currentQuestions: InterviewQuestion[]): Promise<InterviewQuestion[]> => {
+    const targetTotal = interview?.targetQuestionCount ?? currentQuestions.length;
+    const remaining = targetTotal - currentQuestions.length;
+
+    if (remaining <= 0 || !interview || !user?.uid || !interviewId) {
+      return currentQuestions;
+    }
+
+    setIsFillingQuestions(true);
+    try {
+      const result = await generateInterviewQuestions(
+        interview.jobDescription,
+        interview.role,
+        interview.experienceLevel,
+        interview.interviewType,
+        remaining,
+        interview.difficulty,
+        interview.resumeText,
+        currentQuestions.map((question) => question.question),
+        false,
+      );
+
+      if (!result.success) {
+        return currentQuestions;
+      }
+
+      const extraQuestions = buildInterviewQuestions(result.data, interview.interviewType, interview.difficulty).slice(
+        0,
+        remaining,
+      );
+
+      if (!extraQuestions.length) {
+        return currentQuestions;
+      }
+
+      const nextQuestions = [...currentQuestions, ...extraQuestions];
+      setQuestions(nextQuestions);
+
+      const ref = doc(db, "users", user.uid, "interviews", interviewId);
+      await setDoc(ref, { questions: nextQuestions, updatedAt: Timestamp.fromDate(new Date()) }, { merge: true });
+
+      return nextQuestions;
+    } finally {
+      setIsFillingQuestions(false);
+    }
+  };
+
   const handleNextOrFinish = async () => {
-    const effectiveQuestions = await maybeInsertLiveFollowUp();
+    let effectiveQuestions = await maybeInsertLiveFollowUp();
+    if (currentIndex === effectiveQuestions.length - 1) {
+      effectiveQuestions = await maybeFillRemainingQuestions(effectiveQuestions);
+    }
     advance(effectiveQuestions);
   };
 
@@ -397,12 +457,13 @@ export default function InterviewPracticePage() {
                 <InterviewNavigation
                   onPrevious={handlePrevious}
                   onNext={() => void handleNextOrFinish()}
-                  onSkip={handleSkip}
+                  onSkip={() => void handleSkip()}
                   isFirst={currentIndex === 0}
                   isLast={currentIndex === questions.length - 1}
-                  nextLabel={isGeneratingFollowUp ? "Preparing follow-up…" : undefined}
-                  nextDisabled={isGeneratingFollowUp}
-                  nextLoading={isGeneratingFollowUp}
+                  nextLabel={isGeneratingFollowUp ? "Preparing follow-up…" : isFillingQuestions ? "Preparing next question…" : undefined}
+                  nextDisabled={isGeneratingFollowUp || isFillingQuestions}
+                  nextLoading={isGeneratingFollowUp || isFillingQuestions}
+                  skipDisabled={isGeneratingFollowUp || isFillingQuestions}
                 />
               </>
             )}

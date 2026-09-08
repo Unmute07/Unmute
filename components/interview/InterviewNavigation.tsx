@@ -13,6 +13,7 @@ type InterviewNavigationProps = {
   nextLabel?: string;
   nextDisabled?: boolean;
   nextLoading?: boolean;
+  skipDisabled?: boolean;
 };
 
 export function InterviewNavigation({
@@ -24,6 +25,7 @@ export function InterviewNavigation({
   nextLabel,
   nextDisabled,
   nextLoading,
+  skipDisabled,
 }: InterviewNavigationProps) {
   return (
     <div className="flex flex-wrap items-center justify-between gap-3 rounded-[1.25rem] border border-border/70 bg-card/80 p-4 shadow-sm">
@@ -33,7 +35,7 @@ export function InterviewNavigation({
       </Button>
 
       <div className="flex flex-wrap gap-3">
-        <Button type="button" variant="outline" onClick={onSkip} className="rounded-full">
+        <Button type="button" variant="outline" onClick={onSkip} disabled={skipDisabled} className="rounded-full">
           <SkipForward className="mr-2 h-4 w-4" />
           Skip
         </Button>

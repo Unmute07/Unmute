@@ -16,6 +16,7 @@ import { Input } from "@/components/ui/input";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/hooks/useAuth";
 import { analyzeJobDescription, generateInterviewQuestions } from "@/services/ai-client";
+import { buildInterviewQuestions } from "@/services/interview.service";
 import { fetchRecentQuestionsForMock, fetchRecentQuestionsForPractice, recordAskedQuestions } from "@/services/question-history.service";
 import { parseResumePdf } from "@/services/resume-client";
 import type { JobAnalysis, InterviewQuestionSet } from "@/services/ai.service";
@@ -26,7 +27,6 @@ import {
   QUESTION_DIFFICULTY_OPTIONS,
   type InterviewDocument,
   type InterviewMode,
-  type InterviewQuestion,
   type QuestionDifficulty,
 } from "@/types/interview";
 import type { PreferredDifficulty } from "@/types/user";
@@ -57,42 +57,6 @@ type InterviewDraftState = {
   jobAnalysis?: JobAnalysis;
   questions?: InterviewQuestionSet;
 };
-
-const INTERVIEW_TYPE_TO_BUCKETS: Record<string, Array<keyof InterviewQuestionSet>> = {
-  Technical: ["technical"],
-  Behavioral: ["behavioural"],
-  HR: ["hr"],
-  Mixed: ["technical", "behavioural", "hr", "followUps"],
-};
-
-const BUCKET_METADATA: Record<keyof InterviewQuestionSet, { idPrefix: string; category: string; difficulty: string }> = {
-  technical: { idPrefix: "technical", category: "Technical", difficulty: "medium" },
-  behavioural: { idPrefix: "behavioural", category: "Behavioral", difficulty: "medium" },
-  hr: { idPrefix: "hr", category: "HR", difficulty: "medium" },
-  followUps: { idPrefix: "followup", category: "Follow-up", difficulty: "hard" },
-};
-
-function buildInterviewQuestions(
-  questionSet: InterviewQuestionSet,
-  interviewType: string,
-  difficulty: QuestionDifficulty,
-): InterviewQuestion[] {
-  // Client-side safety net: only pull from the buckets that match the selected
-  // interview type, in case the model still returns questions in other buckets.
-  const buckets = INTERVIEW_TYPE_TO_BUCKETS[interviewType] ?? INTERVIEW_TYPE_TO_BUCKETS.Mixed;
-  const uniformDifficulty = difficulty === "Mixed" ? null : difficulty.toLowerCase();
-
-  return buckets.flatMap((bucket) => {
-    const { idPrefix, category, difficulty: bucketDifficulty } = BUCKET_METADATA[bucket];
-    return questionSet[bucket].map((question, index) => ({
-      id: `${idPrefix}-${index}`,
-      question,
-      category,
-      difficulty: uniformDifficulty ?? bucketDifficulty,
-      rationale: "Generated from the job description and role context.",
-    }));
-  });
-}
 
 // The selected question count is a total budget for the whole session, not just the
 // pre-generated set — roughly half is reserved as headroom for live, answer-aware

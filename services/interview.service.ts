@@ -9,14 +9,56 @@ import {
 } from "firebase/firestore";
 
 import { db } from "@/lib/firebase";
-import type { AnswerEvaluation, DeliveryEvaluation } from "@/services/ai.service";
+import type { AnswerEvaluation, DeliveryEvaluation, InterviewQuestionSet } from "@/services/ai.service";
 import {
   SKILL_KEYS,
   type InterviewDocument,
   type InterviewFeedback,
+  type InterviewQuestion,
   type InterviewStatus,
+  type QuestionDifficulty,
   type SkillKey,
 } from "@/types/interview";
+
+const INTERVIEW_TYPE_TO_BUCKETS: Record<string, Array<keyof InterviewQuestionSet>> = {
+  Technical: ["technical"],
+  Behavioral: ["behavioural"],
+  HR: ["hr"],
+  Mixed: ["technical", "behavioural", "hr", "followUps"],
+};
+
+const BUCKET_METADATA: Record<keyof InterviewQuestionSet, { idPrefix: string; category: string; difficulty: string }> = {
+  technical: { idPrefix: "technical", category: "Technical", difficulty: "medium" },
+  behavioural: { idPrefix: "behavioural", category: "Behavioral", difficulty: "medium" },
+  hr: { idPrefix: "hr", category: "HR", difficulty: "medium" },
+  followUps: { idPrefix: "followup", category: "Follow-up", difficulty: "hard" },
+};
+
+export function buildInterviewQuestions(
+  questionSet: InterviewQuestionSet,
+  interviewType: string,
+  difficulty: QuestionDifficulty,
+): InterviewQuestion[] {
+  // Client-side safety net: only pull from the buckets that match the selected
+  // interview type, in case the model still returns questions in other buckets.
+  const buckets = INTERVIEW_TYPE_TO_BUCKETS[interviewType] ?? INTERVIEW_TYPE_TO_BUCKETS.Mixed;
+  const uniformDifficulty = difficulty === "Mixed" ? null : difficulty.toLowerCase();
+  // Unique per call (not just per bucket index) so a later top-up batch — e.g. filling
+  // out a session that never reached its selected question count — can't collide with
+  // ids already in use from the initial generation.
+  const runToken = Date.now();
+
+  return buckets.flatMap((bucket) => {
+    const { idPrefix, category, difficulty: bucketDifficulty } = BUCKET_METADATA[bucket];
+    return questionSet[bucket].map((question, index) => ({
+      id: `${idPrefix}-${runToken}-${index}`,
+      question,
+      category,
+      difficulty: uniformDifficulty ?? bucketDifficulty,
+      rationale: "Generated from the job description and role context.",
+    }));
+  });
+}
 
 export function subscribeToInterviews(
   uid: string,
