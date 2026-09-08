@@ -3,10 +3,14 @@ import type {
   JobAnalysis,
   InterviewQuestionSet,
   AnswerEvaluation,
+  AnswerEvaluationContext,
   DeliveryEvaluation,
-  StudyPlan,
+  FollowUpContext,
+  FollowUpTranscriptItem,
   InterviewSummary,
   InterviewRecordLike,
+  InterviewTranscriptItem,
+  QuestionCount,
 } from "@/services/ai.service";
 
 async function callAiRoute<T>(action: string, payload: unknown): Promise<AiResult<T>> {
@@ -33,17 +37,31 @@ export async function generateInterviewQuestions(
   role: string,
   experienceLevel: string,
   interviewType: string,
+  questionCount?: QuestionCount,
+  difficulty?: string,
+  resumeText?: string,
+  avoidQuestions?: string[],
+  includeFollowUps?: boolean,
 ): Promise<AiResult<InterviewQuestionSet>> {
   return callAiRoute<InterviewQuestionSet>("generateInterviewQuestions", {
     jobDescription,
     role,
     experienceLevel,
     interviewType,
+    questionCount,
+    difficulty,
+    resumeText,
+    avoidQuestions,
+    includeFollowUps,
   });
 }
 
-export async function evaluateAnswer(question: string, answer: string): Promise<AiResult<AnswerEvaluation>> {
-  return callAiRoute<AnswerEvaluation>("evaluateAnswer", { question, answer });
+export async function evaluateAnswer(
+  question: string,
+  answer: string,
+  context?: AnswerEvaluationContext,
+): Promise<AiResult<AnswerEvaluation>> {
+  return callAiRoute<AnswerEvaluation>("evaluateAnswer", { question, answer, context });
 }
 
 export async function evaluateSpokenDelivery(
@@ -54,10 +72,20 @@ export async function evaluateSpokenDelivery(
   return callAiRoute<DeliveryEvaluation>("evaluateSpokenDelivery", { question, audioBase64, mimeType });
 }
 
-export async function generateStudyPlan(feedback: string): Promise<AiResult<StudyPlan>> {
-  return callAiRoute<StudyPlan>("generateStudyPlan", { feedback });
+export async function transcribeAnswer(audioBase64: string, mimeType: string): Promise<AiResult<{ text: string }>> {
+  return callAiRoute<{ text: string }>("transcribeAnswer", { audioBase64, mimeType });
 }
 
-export async function generateInterviewSummary(interview: InterviewRecordLike): Promise<AiResult<InterviewSummary>> {
-  return callAiRoute<InterviewSummary>("generateInterviewSummary", { interview });
+export async function generateInterviewSummary(
+  interview: InterviewRecordLike,
+  transcript: InterviewTranscriptItem[],
+): Promise<AiResult<InterviewSummary>> {
+  return callAiRoute<InterviewSummary>("generateInterviewSummary", { interview, transcript });
+}
+
+export async function generateFollowUpQuestion(
+  transcript: FollowUpTranscriptItem[],
+  context?: FollowUpContext,
+): Promise<AiResult<{ question: string }>> {
+  return callAiRoute<{ question: string }>("generateFollowUpQuestion", { transcript, context });
 }

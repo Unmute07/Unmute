@@ -3,25 +3,35 @@
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { ArrowLeft, BrainCircuit, Loader2, Sparkles } from "lucide-react";
+import { ArrowLeft, Loader2, Sparkles } from "lucide-react";
 import { doc, onSnapshot, setDoc, Timestamp } from "firebase/firestore";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { QuestionFeedbackCard } from "@/components/interview/QuestionFeedbackCard";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/hooks/useAuth";
-import { evaluateAnswer, evaluateSpokenDelivery, generateInterviewSummary, generateStudyPlan } from "@/services/ai-client";
-import type { AnswerEvaluation, DeliveryEvaluation, InterviewSummary, StudyPlan } from "@/services/ai.service";
-import { computeDeliveryScores, computeFeedbackScores, type DeliveryScores } from "@/services/interview.service";
+import { evaluateAnswer, evaluateSpokenDelivery, generateInterviewSummary } from "@/services/ai-client";
+import type {
+  AnswerEvaluation,
+  DeliveryEvaluation,
+  InterviewRecordLike,
+  InterviewSummary,
+  InterviewTranscriptItem,
+} from "@/services/ai.service";
+import { computeDeliveryScores, computeFeedbackScores, normalizeInterviewDoc, type DeliveryScores } from "@/services/interview.service";
 import type { InterviewDocument, InterviewFeedback } from "@/types/interview";
+import { ENGLISH_RESOURCES } from "@/data/english-resources";
+
+const ENGLISH_PROFICIENCY_THRESHOLD = 65;
 
 type FeedbackItem = {
+  id: string;
   question: string;
   answer: string;
   audioUrl?: string;
   evaluation?: AnswerEvaluation;
   delivery?: DeliveryEvaluation;
-  improvedAnswer?: string;
 };
 
 async function audioUrlToBase64(url: string): Promise<{ base64: string; mimeType: string } | null> {
@@ -48,6 +58,26 @@ async function evaluateDelivery(question: string, audioUrl: string): Promise<Del
 
   const result = await evaluateSpokenDelivery(question, encoded.base64, encoded.mimeType);
   return result.success ? result.data : undefined;
+}
+
+type OverallFeedbackResult = {
+  summary: InterviewSummary | null;
+  summaryError: string | null;
+};
+
+async function generateOverallFeedback(
+  interview: InterviewRecordLike,
+  transcript: InterviewTranscriptItem[],
+): Promise<OverallFeedbackResult> {
+  const summaryResult = await generateInterviewSummary(interview, transcript);
+  const summary = summaryResult.success ? summaryResult.data : null;
+  const summaryError = summaryResult.success ? null : summaryResult.error;
+
+  return { summary, summaryError };
+}
+
+function transcriptFromFeedbackItems(items: FeedbackItem[]): InterviewTranscriptItem[] {
+  return items.map((item) => ({ question: item.question, answer: item.answer, evaluation: item.evaluation }));
 }
 
 type ScoreCardProps = {
@@ -81,7 +111,6 @@ export default function FeedbackPage() {
   const [interview, setInterview] = useState<InterviewDocument | null>(null);
   const [feedbackItems, setFeedbackItems] = useState<FeedbackItem[]>([]);
   const [summary, setSummary] = useState<InterviewSummary | null>(null);
-  const [studyPlan, setStudyPlan] = useState<StudyPlan | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [evaluationsReady, setEvaluationsReady] = useState(false);
@@ -93,9 +122,19 @@ export default function FeedbackPage() {
   const liveDeliveryScores = useMemo(() => computeDeliveryScores(feedbackItems), [feedbackItems]);
   const recordedItems = useMemo(() => feedbackItems.filter((item) => item.audioUrl), [feedbackItems]);
   const hasAnswers = useMemo(() => feedbackItems.some((item) => item.answer.trim().length > 0), [feedbackItems]);
+  const attemptedItems = useMemo(() => feedbackItems.filter((item) => item.answer.trim().length > 0), [feedbackItems]);
 
   const scores = cachedFeedback ?? liveScores;
-  const { overallScore = 0, communicationScore = 0, technicalScore = 0, behavioralScore = 0, leadershipScore = 0, problemSolvingScore = 0, confidenceScore = 0 } = scores;
+  const {
+    overallScore = 0,
+    communicationScore = 0,
+    technicalScore = 0,
+    behavioralScore = 0,
+    leadershipScore = 0,
+    problemSolvingScore = 0,
+    confidenceScore = 0,
+    englishProficiencyScore = 0,
+  } = scores;
 
   const deliveryScores: DeliveryScores | null =
     cachedFeedback?.deliveryClarityScore !== undefined
@@ -124,35 +163,48 @@ export default function FeedbackPage() {
           return;
         }
 
-        const data = { id: snapshot.id, ...snapshot.data() } as InterviewDocument;
+        const data = normalizeInterviewDoc(snapshot.id, snapshot.data());
         setInterview(data);
 
         const questions = data.questions ?? [];
         const answers = data.answers ?? {};
         const audioUrls = data.audioUrls ?? {};
         const items = questions.map((question) => ({
+          id: question.id,
           question: question.question,
           answer: answers[question.id] ?? "",
           audioUrl: audioUrls[question.id],
-          improvedAnswer: answers[question.id] ?? "",
+          evaluation: data.evaluations?.[question.id],
         }));
 
         setFeedbackItems(items);
 
+        // An evaluation counts as stale (and needs a fresh call) if it's missing
+        // entirely, or if it predates a field we've since added to the evaluation
+        // schema (e.g. englishFeedback) — otherwise an answer evaluated before that
+        // field existed would silently show a card with no English section forever.
+        const isStaleEvaluation = (item: (typeof items)[number]) =>
+          item.answer.trim().length > 0 && (!item.evaluation || typeof item.evaluation.englishFeedback !== "string");
+
+        // An attempted question can be missing its evaluation if it wasn't given
+        // live AI feedback during the interview and a prior visit to this page
+        // failed to evaluate it (e.g. hit a rate limit) — those need a retry even
+        // though the interview is otherwise "completed".
+        const hasUnevaluatedAnswer = items.some(isStaleEvaluation);
+
         // Feedback was already generated and persisted for this interview — reuse it
         // instead of re-running the AI pipeline (which would also re-trigger this very
         // listener via the write below, causing an endless refresh loop).
-        if (data.status === "completed" && typeof data.feedback?.overallScore === "number") {
+        if (data.status === "completed" && typeof data.feedback?.overallScore === "number" && !hasUnevaluatedAnswer) {
           setCachedFeedback(data.feedback);
           setSummary(data.feedback.summary ?? null);
-          setStudyPlan(data.feedback.studyPlan ?? null);
           setLoading(false);
           return;
         }
 
         if (items.length > 0) {
           // Evaluated sequentially, not via Promise.all — firing every question's
-          // delivery + answer evaluation at once easily bursts past Groq's per-minute
+          // delivery + answer evaluation at once easily bursts past Gemini's per-minute
           // rate limit, which no amount of per-call retrying can recover from in time.
           const evaluations: FeedbackItem[] = [];
           for (const item of items) {
@@ -163,7 +215,21 @@ export default function FeedbackPage() {
               continue;
             }
 
-            const result = await evaluateAnswer(item.question, item.answer);
+            if (item.evaluation && !isStaleEvaluation(item)) {
+              // Already evaluated (live during Practice, or a prior visit here) with the
+              // current evaluation schema — reuse it instead of re-calling the AI (avoids
+              // duplicate cost and keeps live/final feedback consistent).
+              evaluations.push({ ...item, delivery });
+              continue;
+            }
+
+            const result = await evaluateAnswer(item.question, item.answer, {
+              role: data.role,
+              experienceLevel: data.experienceLevel,
+              interviewType: data.interviewType,
+              jobDescription: data.jobDescription,
+              resumeText: data.resumeText,
+            });
             evaluations.push({ ...item, delivery, evaluation: result.success ? result.data : undefined });
           }
 
@@ -182,27 +248,22 @@ export default function FeedbackPage() {
               weaknesses: [],
               nextSteps: ["Check your microphone and re-record your answers to get real feedback."],
             });
-            setStudyPlan({ weeklyPlan: [], plan: [] });
           } else {
-            const summaryResult = await generateInterviewSummary({
-              company: data.company,
-              role: data.role,
-              experienceLevel: data.experienceLevel,
-              interviewType: data.interviewType,
-              jobDescription: data.jobDescription,
-              status: data.status,
-              createdAt: data.createdAt,
-              updatedAt: data.updatedAt,
-            });
+            const overall = await generateOverallFeedback(
+              {
+                company: data.company,
+                role: data.role,
+                experienceLevel: data.experienceLevel,
+                interviewType: data.interviewType,
+                jobDescription: data.jobDescription,
+                status: data.status,
+                createdAt: data.createdAt,
+                updatedAt: data.updatedAt,
+              },
+              transcriptFromFeedbackItems(evaluations),
+            );
 
-            if (summaryResult.success) {
-              setSummary(summaryResult.data);
-            }
-
-            const studyPlanResult = await generateStudyPlan((summaryResult.success ? summaryResult.data.summary : "Improve interview delivery") + "\n" + (evaluations[0]?.evaluation?.feedback ?? ""));
-            if (studyPlanResult.success) {
-              setStudyPlan(studyPlanResult.data);
-            }
+            setSummary(overall.summary);
           }
         }
 
@@ -239,10 +300,15 @@ export default function FeedbackPage() {
             }
           : {};
 
+        const evaluationsToPersist = Object.fromEntries(
+          feedbackItems.filter((item) => item.evaluation).map((item) => [item.id, item.evaluation]),
+        );
+
         const ref = doc(db, "users", uid, "interviews", interviewId);
         await setDoc(
           ref,
           {
+            evaluations: evaluationsToPersist,
             feedback: {
               overallScore,
               communicationScore,
@@ -251,8 +317,8 @@ export default function FeedbackPage() {
               leadershipScore,
               problemSolvingScore,
               confidenceScore,
+              englishProficiencyScore,
               summary,
-              studyPlan,
               ...deliveryFields,
             },
             status: "completed",
@@ -304,13 +370,41 @@ export default function FeedbackPage() {
           </div>
         </div>
 
-        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.24 }} className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.24 }} className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
           <ScoreCard label="Overall Score" value={overallScore} />
           <ScoreCard label="Communication" value={communicationScore} accent="text-secondary" />
           <ScoreCard label="Technical" value={technicalScore} accent="text-accent-foreground" />
           <ScoreCard label="Behavioral" value={behavioralScore} accent="text-primary" />
           <ScoreCard label="Confidence" value={confidenceScore} accent="text-secondary" />
+          <ScoreCard label="English Proficiency" value={englishProficiencyScore} accent="text-accent-foreground" />
         </motion.div>
+
+        {hasAnswers && englishProficiencyScore > 0 && englishProficiencyScore < ENGLISH_PROFICIENCY_THRESHOLD ? (
+          <Card className="border-border/70 bg-card/80 shadow-[0_16px_50px_rgba(15,23,42,0.08)]">
+            <CardHeader>
+              <CardTitle>Recommended English resources</CardTitle>
+              <CardDescription>Your English proficiency score was below {ENGLISH_PROFICIENCY_THRESHOLD} — these resources can help.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {ENGLISH_RESOURCES.length ? (
+                ENGLISH_RESOURCES.map((resource) => (
+                  <a
+                    key={resource.url}
+                    href={resource.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="block rounded-2xl border border-border/70 bg-background/60 p-4 transition hover:border-primary/50"
+                  >
+                    <p className="font-semibold text-foreground">{resource.title}</p>
+                    <p className="mt-1 text-sm leading-6 text-muted-foreground">{resource.description}</p>
+                  </a>
+                ))
+              ) : (
+                <p className="text-sm text-muted-foreground">Resources coming soon.</p>
+              )}
+            </CardContent>
+          </Card>
+        ) : null}
 
         {deliveryScores ? (
           <div className="space-y-4">
@@ -385,110 +479,21 @@ export default function FeedbackPage() {
           </Card>
         ) : null}
 
-        <div className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
-          <div className="space-y-6">
-            <Card className="border-border/70 bg-card/80 shadow-[0_16px_50px_rgba(15,23,42,0.08)]">
-              <CardHeader>
-                <CardTitle>Strengths</CardTitle>
-                <CardDescription>What stood out in your interview delivery.</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <ul className="space-y-3 text-sm leading-7 text-muted-foreground">
-                  {(summary?.strengths?.length
-                    ? summary.strengths
-                    : [hasAnswers ? "We couldn't identify specific strengths from this session." : "No spoken answer was recorded, so there's nothing to assess yet."]
-                  ).map((item) => (
-                    <li key={item} className="rounded-2xl border border-border/70 bg-background/60 px-3 py-3">
-                      {item}
-                    </li>
-                  ))}
-                </ul>
-              </CardContent>
-            </Card>
-
-            <Card className="border-border/70 bg-card/80 shadow-[0_16px_50px_rgba(15,23,42,0.08)]">
-              <CardHeader>
-                <CardTitle>Weaknesses</CardTitle>
-                <CardDescription>Opportunities to sharpen your responses.</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <ul className="space-y-3 text-sm leading-7 text-muted-foreground">
-                  {(summary?.weaknesses?.length
-                    ? summary.weaknesses
-                    : [hasAnswers ? "We couldn't identify specific weaknesses from this session." : "No spoken answer was recorded, so there's nothing to assess yet."]
-                  ).map((item) => (
-                    <li key={item} className="rounded-2xl border border-border/70 bg-background/60 px-3 py-3">
-                      {item}
-                    </li>
-                  ))}
-                </ul>
-              </CardContent>
-            </Card>
-          </div>
-
-          <div className="space-y-6">
-            <Card className="border-border/70 bg-card/80 shadow-[0_16px_50px_rgba(15,23,42,0.08)]">
-              <CardHeader>
-                <CardTitle>AI suggestions</CardTitle>
-                <CardDescription>Practical coaching guidance.</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {(studyPlan?.plan?.length
-                  ? studyPlan.plan
-                  : [
-                      hasAnswers
-                        ? { title: "No suggestions yet", description: "We couldn't generate coaching guidance from this session.", priority: "low" as const }
-                        : { title: "Record an answer first", description: "No spoken answer was detected, so there's no coaching guidance to give.", priority: "low" as const },
-                    ]
-                ).map((item) => (
-                  <div key={item.title} className="rounded-2xl border border-border/70 bg-background/60 p-4">
-                    <div className="flex items-center justify-between gap-2">
-                      <p className="font-semibold text-foreground">{item.title}</p>
-                      <span className="rounded-full border border-primary/20 bg-primary/10 px-2.5 py-1 text-xs font-medium uppercase tracking-[0.24em] text-primary">
-                        {item.priority}
-                      </span>
-                    </div>
-                    <p className="mt-2 text-sm leading-7 text-muted-foreground">{item.description}</p>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
-
-            <Card className="border-border/70 bg-card/80 shadow-[0_16px_50px_rgba(15,23,42,0.08)]">
-              <CardHeader>
-                <CardTitle>Next steps</CardTitle>
-                <CardDescription>What to do before your next round.</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <ul className="space-y-3 text-sm leading-7 text-muted-foreground">
-                  {(summary?.nextSteps?.length
-                    ? summary.nextSteps
-                    : [hasAnswers ? "Re-attempt this interview to get personalized next steps." : "Check your microphone and re-record your answers to get real feedback."]
-                  ).map((item) => (
-                    <li key={item} className="rounded-2xl border border-border/70 bg-background/60 px-3 py-3">
-                      {item}
-                    </li>
-                  ))}
-                </ul>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
-
-        <Card className="border-border/70 bg-card/80 shadow-[0_16px_50px_rgba(15,23,42,0.08)]">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <BrainCircuit className="h-5 w-5 text-primary" />
-              Improved answer example
-            </CardTitle>
-            <CardDescription>One stronger way to frame your response.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="rounded-2xl border border-border/70 bg-background/60 p-4 text-sm leading-8 text-muted-foreground">
-              {feedbackItems[0]?.improvedAnswer || (hasAnswers ? "Practice a stronger answer with a clear opening, evidence, and impact statement." : "No spoken answer was recorded for this question.")}
+        {attemptedItems.length ? (
+          <div className="space-y-4">
+            <div>
+              <h2 className="text-xl font-semibold tracking-tight text-foreground">Question-by-question feedback</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Detailed feedback for each question you attempted — {attemptedItems.length} of {feedbackItems.length} question{feedbackItems.length === 1 ? "" : "s"}.
+              </p>
             </div>
-          </CardContent>
-        </Card>
+            <div className="space-y-4">
+              {attemptedItems.map((item, index) => (
+                <QuestionFeedbackCard key={item.question} item={item} index={index} />
+              ))}
+            </div>
+          </div>
+        ) : null}
       </div>
     </div>
   );

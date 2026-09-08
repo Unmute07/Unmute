@@ -2,6 +2,7 @@ import { FirebaseError } from "firebase/app";
 import {
   createUserWithEmailAndPassword,
   deleteUser,
+  sendEmailVerification,
   sendPasswordResetEmail,
   signInWithEmailAndPassword,
   signOut as firebaseSignOut,
@@ -49,11 +50,21 @@ export async function signUpWithEmailAndPassword(email: string, password: string
     const result = await createUserWithEmailAndPassword(auth, email, password);
     if (result.user) {
       await updateProfile(result.user, { displayName });
+      await sendEmailVerification(result.user);
     }
 
     return result.user as AuthUser;
   } catch (error) {
     console.error("[auth] sign-up failed", isFirebaseAuthError(error) ? error.code : error);
+    throw error;
+  }
+}
+
+export async function resendVerificationEmail(user: User) {
+  try {
+    await sendEmailVerification(user);
+  } catch (error) {
+    console.error("[auth] resend verification email failed", isFirebaseAuthError(error) ? error.code : error);
     throw error;
   }
 }

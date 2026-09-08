@@ -44,7 +44,9 @@ export function SignupForm({ onSuccess }: SignupFormProps) {
   const onSubmit = async (values: SignupFormValues) => {
     try {
       await signup(values.email, values.password, values.fullName);
-      toast.success("Account created successfully.");
+      toast.success("Account created successfully.", {
+        description: "We sent a verification link to your email — check your spam/junk folder if you don't see it soon.",
+      });
       onSuccess?.();
     } catch (error) {
       console.error("[auth] sign-up failed", isFirebaseAuthError(error) ? error.code : error);

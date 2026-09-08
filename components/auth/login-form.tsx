@@ -58,7 +58,9 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
     try {
       setIsResetLoading(true);
       await forgotPassword(email);
-      toast.success("Password reset email sent.");
+      toast.success("Password reset email sent.", {
+        description: "Check your inbox — and your spam/junk folder if it doesn't show up in a minute or two.",
+      });
     } catch (error) {
       console.error("[auth] forgot-password failed", isFirebaseAuthError(error) ? error.code : error);
       toast.error(describeAuthError(error));

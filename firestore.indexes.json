@@ -1,0 +1,16 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "askedQuestions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "company", "order": "ASCENDING" },
+        { "fieldPath": "mode", "order": "ASCENDING" },
+        { "fieldPath": "role", "order": "ASCENDING" },
+        { "fieldPath": "experienceLevel", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}

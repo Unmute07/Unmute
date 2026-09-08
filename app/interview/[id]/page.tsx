@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { Loader2 } from "lucide-react";
+import { Loader2, Sparkles } from "lucide-react";
 import { doc, onSnapshot, setDoc, Timestamp } from "firebase/firestore";
 
 import { AnswerInput } from "@/components/interview/AnswerInput";
@@ -11,11 +11,15 @@ import { InterviewComplete } from "@/components/interview/InterviewComplete";
 import { InterviewNavigation } from "@/components/interview/InterviewNavigation";
 import { ProgressSidebar } from "@/components/interview/ProgressSidebar";
 import { QuestionCard } from "@/components/interview/QuestionCard";
+import { QuestionFeedbackCard } from "@/components/interview/QuestionFeedbackCard";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/hooks/useAuth";
+import { evaluateAnswer, generateFollowUpQuestion } from "@/services/ai-client";
+import type { AnswerEvaluation } from "@/services/ai.service";
 import { uploadAnswerAudio } from "@/services/audio-client";
+import { normalizeInterviewDoc } from "@/services/interview.service";
 import type { InterviewDocument, InterviewQuestion } from "@/types/interview";
 
 const defaultQuestions: InterviewQuestion[] = [
@@ -47,18 +51,24 @@ export default function InterviewPracticePage() {
   const router = useRouter();
   const { user, loading: authLoading } = useAuth();
   const [interview, setInterview] = useState<InterviewDocument | null>(null);
+  const [questions, setQuestions] = useState<InterviewQuestion[]>([]);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [audioUrls, setAudioUrls] = useState<Record<string, string>>({});
+  const [evaluations, setEvaluations] = useState<Record<string, AnswerEvaluation>>({});
   const [currentIndex, setCurrentIndex] = useState(0);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploadingAudio, setUploadingAudio] = useState(false);
   const [timeElapsed, setTimeElapsed] = useState(0);
+  const [evaluatingQuestionId, setEvaluatingQuestionId] = useState<string | null>(null);
+  const [isGeneratingFollowUp, setIsGeneratingFollowUp] = useState(false);
+  const [firedFollowUpQuestionIds, setFiredFollowUpQuestionIds] = useState<Set<string>>(new Set());
   const autosaveTimer = useRef<number | null>(null);
+  const originalQuestionsRef = useRef<InterviewQuestion[] | null>(null);
 
   const interviewId = params?.id;
-  const questions = useMemo(() => interview?.questions?.length ? interview.questions : defaultQuestions, [interview]);
   const isComplete = currentIndex >= questions.length;
+  const isPracticeMode = interview?.mode === "practice";
 
   useEffect(() => {
     if (!user?.uid || !interviewId) {
@@ -70,10 +80,16 @@ export default function InterviewPracticePage() {
       ref,
       (snapshot) => {
         if (snapshot.exists()) {
-          const data = { id: snapshot.id, ...snapshot.data() } as InterviewDocument;
+          const data = normalizeInterviewDoc(snapshot.id, snapshot.data());
+          const loadedQuestions = data.questions?.length ? data.questions : defaultQuestions;
           setInterview(data);
+          setQuestions(loadedQuestions);
           setAnswers(data.answers ?? {});
           setAudioUrls(data.audioUrls ?? {});
+          setEvaluations(data.evaluations ?? {});
+          if (!originalQuestionsRef.current) {
+            originalQuestionsRef.current = loadedQuestions;
+          }
           setLoading(false);
         } else {
           setLoading(false);
@@ -176,13 +192,13 @@ export default function InterviewPracticePage() {
 
   const activeQuestion = questions[currentIndex];
 
-  const handleNext = () => {
-    if (currentIndex < questions.length - 1) {
+  const advance = (effectiveQuestions: InterviewQuestion[]) => {
+    if (currentIndex < effectiveQuestions.length - 1) {
       setCurrentIndex((value) => value + 1);
       return;
     }
 
-    setCurrentIndex(questions.length);
+    setCurrentIndex(effectiveQuestions.length);
   };
 
   const handlePrevious = () => {
@@ -202,6 +218,91 @@ export default function InterviewPracticePage() {
   const handleRestart = () => {
     setCurrentIndex(0);
     setTimeElapsed(0);
+  };
+
+  const maybeInsertLiveFollowUp = async (): Promise<InterviewQuestion[]> => {
+    const answer = answers[activeQuestion.id]?.trim();
+    // Only follow up on an original (pre-generated) question, never on a live
+    // follow-up itself — otherwise every answer would spawn another follow-up
+    // question indefinitely.
+    const originalIds = new Set(originalQuestionsRef.current?.map((question) => question.id) ?? []);
+    // The selected question count is a total budget for the whole session — stop
+    // inserting follow-ups once we've reached it, even if more original questions
+    // are still unanswered.
+    const targetTotal = interview?.targetQuestionCount ?? questions.length;
+    const atCapacity = questions.length >= targetTotal;
+
+    if (!answer || !originalIds.has(activeQuestion.id) || firedFollowUpQuestionIds.has(activeQuestion.id) || atCapacity) {
+      return questions;
+    }
+
+    setIsGeneratingFollowUp(true);
+    try {
+      const transcript = questions
+        .slice(0, currentIndex + 1)
+        .map((q) => ({ question: q.question, answer: answers[q.id] ?? "" }))
+        .filter((item) => item.answer.trim().length > 0);
+
+      const result = await generateFollowUpQuestion(transcript, {
+        role: interview?.role,
+        experienceLevel: interview?.experienceLevel,
+        jobDescription: interview?.jobDescription,
+      });
+
+      if (!result.success || !user?.uid || !interviewId) {
+        return questions;
+      }
+
+      const newQuestion: InterviewQuestion = {
+        id: `followup-live-${Date.now()}`,
+        question: result.data.question,
+        category: "Follow-up",
+        difficulty: "hard",
+        rationale: "Generated live based on your previous answer.",
+      };
+      const nextQuestions = [...questions.slice(0, currentIndex + 1), newQuestion, ...questions.slice(currentIndex + 1)];
+      setQuestions(nextQuestions);
+
+      const ref = doc(db, "users", user.uid, "interviews", interviewId);
+      await setDoc(ref, { questions: nextQuestions, updatedAt: Timestamp.fromDate(new Date()) }, { merge: true });
+
+      return nextQuestions;
+    } finally {
+      setFiredFollowUpQuestionIds((previous) => new Set(previous).add(activeQuestion.id));
+      setIsGeneratingFollowUp(false);
+    }
+  };
+
+  const handleNextOrFinish = async () => {
+    const effectiveQuestions = await maybeInsertLiveFollowUp();
+    advance(effectiveQuestions);
+  };
+
+  const handleRequestFeedback = async () => {
+    const answer = answers[activeQuestion.id]?.trim();
+    if (!answer || !user?.uid || !interviewId) {
+      return;
+    }
+
+    setEvaluatingQuestionId(activeQuestion.id);
+    try {
+      const result = await evaluateAnswer(activeQuestion.question, answer, {
+        role: interview?.role,
+        experienceLevel: interview?.experienceLevel,
+        interviewType: interview?.interviewType,
+        jobDescription: interview?.jobDescription,
+        resumeText: interview?.resumeText,
+      });
+
+      if (result.success) {
+        const nextEvaluations = { ...evaluations, [activeQuestion.id]: result.data };
+        setEvaluations(nextEvaluations);
+        const ref = doc(db, "users", user.uid, "interviews", interviewId);
+        await setDoc(ref, { evaluations: nextEvaluations, updatedAt: Timestamp.fromDate(new Date()) }, { merge: true });
+      }
+    } finally {
+      setEvaluatingQuestionId(null);
+    }
   };
 
   const handleAudioRecorded = async (blob: Blob) => {
@@ -246,7 +347,11 @@ export default function InterviewPracticePage() {
         <div className="grid gap-6 xl:grid-cols-[1.3fr_0.7fr]">
           <div className="space-y-6">
             {isComplete ? (
-              <InterviewComplete onRestart={handleRestart} onViewFeedback={() => router.push(`/feedback/${interviewId}`)} />
+              <InterviewComplete
+                onRestart={handleRestart}
+                onViewFeedback={() => router.push(`/feedback/${interviewId}`)}
+                mode={interview?.mode}
+              />
             ) : (
               <>
                 <QuestionCard question={activeQuestion} index={currentIndex} total={questions.length} />
@@ -256,12 +361,44 @@ export default function InterviewPracticePage() {
                   savedAudioUrl={audioUrls[activeQuestion.id]}
                   onAudioRecorded={(blob) => void handleAudioRecorded(blob)}
                 />
+                {isPracticeMode ? (
+                  evaluations[activeQuestion.id] ? (
+                    <QuestionFeedbackCard
+                      item={{
+                        question: activeQuestion.question,
+                        answer: answers[activeQuestion.id] ?? "",
+                        evaluation: evaluations[activeQuestion.id],
+                      }}
+                      index={currentIndex}
+                    />
+                  ) : (answers[activeQuestion.id] ?? "").trim().length > 0 ? (
+                    <div className="flex justify-center">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="rounded-full"
+                        onClick={() => void handleRequestFeedback()}
+                        disabled={evaluatingQuestionId === activeQuestion.id}
+                      >
+                        {evaluatingQuestionId === activeQuestion.id ? (
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        ) : (
+                          <Sparkles className="mr-2 h-4 w-4" />
+                        )}
+                        {evaluatingQuestionId === activeQuestion.id ? "Getting feedback…" : "AI Feedback"}
+                      </Button>
+                    </div>
+                  ) : null
+                ) : null}
                 <InterviewNavigation
                   onPrevious={handlePrevious}
-                  onNext={handleNext}
+                  onNext={() => void handleNextOrFinish()}
                   onSkip={handleSkip}
                   isFirst={currentIndex === 0}
                   isLast={currentIndex === questions.length - 1}
+                  nextLabel={isGeneratingFollowUp ? "Preparing follow-up…" : undefined}
+                  nextDisabled={isGeneratingFollowUp}
+                  nextLoading={isGeneratingFollowUp}
                 />
               </>
             )}

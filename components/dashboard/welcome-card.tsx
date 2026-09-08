@@ -30,11 +30,18 @@ export function WelcomeCard({
             <h2 className="mt-4 text-2xl font-semibold tracking-tight text-foreground">{headline}</h2>
             <p className="mt-3 text-sm leading-7 text-muted-foreground">{description}</p>
           </div>
-          <Button asChild className="primary-button h-11 rounded-full px-5">
-            <Link href="/interviews/new">
-              Start Practice <ArrowRight className="ml-2 h-4 w-4" />
-            </Link>
-          </Button>
+          <div className="flex flex-wrap gap-3">
+            <Button asChild variant="outline" className="h-11 rounded-full px-5">
+              <Link href="/interviews/new?mode=practice">
+                Practice <ArrowRight className="ml-2 h-4 w-4" />
+              </Link>
+            </Button>
+            <Button asChild className="primary-button h-11 rounded-full px-5">
+              <Link href="/interviews/new?mode=mock">
+                Mock Interview <ArrowRight className="ml-2 h-4 w-4" />
+              </Link>
+            </Button>
+          </div>
         </CardContent>
       </Card>
     </motion.div>

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import type { User } from "firebase/auth";
 
 import {
+  resendVerificationEmail,
   resetPassword,
   signInWithEmailAndPasswordEmail,
   signOut,
@@ -25,6 +26,8 @@ type AuthContextValue = {
   logout: () => Promise<void>;
   forgotPassword: (email: string) => Promise<void>;
   refreshUser: () => void;
+  resendVerificationEmail: () => Promise<void>;
+  reloadUser: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -108,6 +111,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await resetPassword(email);
   }, []);
 
+  const handleResendVerificationEmail = useCallback(async () => {
+    if (!user) return;
+    await resendVerificationEmail(user);
+  }, [user]);
+
+  const reloadUser = useCallback(async () => {
+    if (!user) return;
+    await user.reload();
+    refreshUser();
+  }, [user, refreshUser]);
+
   const value = useMemo<AuthContextValue>(
     () => ({
       user,
@@ -120,8 +134,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       logout,
       forgotPassword,
       refreshUser,
+      resendVerificationEmail: handleResendVerificationEmail,
+      reloadUser,
     }),
-    [loading, user, userVersion, profile, profileLoading, logout, forgotPassword, login, signup, refreshUser]
+    [
+      loading,
+      user,
+      userVersion,
+      profile,
+      profileLoading,
+      logout,
+      forgotPassword,
+      login,
+      signup,
+      refreshUser,
+      handleResendVerificationEmail,
+      reloadUser,
+    ]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

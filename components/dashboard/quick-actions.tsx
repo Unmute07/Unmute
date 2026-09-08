@@ -14,8 +14,8 @@ type QuickAction = {
 };
 
 const actions: QuickAction[] = [
-  { title: "New Interview", description: "Add a job description to get tailored questions", href: "/interviews/new", icon: PlayCircle },
-  { title: "Practice Session", description: "Jump into a guided prep session", href: "/interviews", icon: Mic },
+  { title: "Practice", description: "Untimed reps with optional feedback after each answer", href: "/interviews/new?mode=practice", icon: Mic },
+  { title: "Mock Interview", description: "A realistic run-through with feedback only at the end", href: "/interviews/new?mode=mock", icon: PlayCircle },
   { title: "View Progress", description: "Monitor your readiness trend", href: "/progress", icon: LineChart },
 ];
 

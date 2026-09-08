@@ -46,12 +46,21 @@ export function normalizeInterviewDoc(id: string, data: DocumentData): Interview
     interviewType: data.interviewType ?? "",
     jobDescription: data.jobDescription ?? "",
     status: (data.status as InterviewStatus | undefined) ?? "analyzing",
+    // Interviews created before the practice/mock split default to "mock" — they
+    // were all pre-generated, full-feedback-at-the-end sessions, which is what "mock" means here.
+    mode: (data.mode as InterviewDocument["mode"] | undefined) ?? "mock",
+    difficulty: (data.difficulty as InterviewDocument["difficulty"] | undefined) ?? "Mixed",
+    resumeText: data.resumeText,
     createdAt: data.createdAt,
     updatedAt: data.updatedAt,
     completedAt: data.completedAt,
+    // Interviews created before this cap existed have no stored target — fall back to
+    // however many questions they already have, so the cap is a no-op for those sessions.
+    targetQuestionCount: data.targetQuestionCount ?? data.questions?.length ?? 0,
     questions: data.questions ?? [],
     answers: data.answers ?? {},
     audioUrls: data.audioUrls ?? {},
+    evaluations: data.evaluations ?? {},
     feedback: data.feedback ?? {},
     analysis: data.analysis,
   };
@@ -61,7 +70,14 @@ export function computeFeedbackScores(
   items: Array<{ evaluation?: AnswerEvaluation }>,
 ): Pick<
   InterviewFeedback,
-  "overallScore" | "communicationScore" | "technicalScore" | "behavioralScore" | "leadershipScore" | "problemSolvingScore" | "confidenceScore"
+  | "overallScore"
+  | "communicationScore"
+  | "technicalScore"
+  | "behavioralScore"
+  | "leadershipScore"
+  | "problemSolvingScore"
+  | "confidenceScore"
+  | "englishProficiencyScore"
 > {
   const evaluations = items.map((item) => item.evaluation).filter((item): item is AnswerEvaluation => Boolean(item));
 
@@ -74,6 +90,7 @@ export function computeFeedbackScores(
       leadershipScore: 0,
       problemSolvingScore: 0,
       confidenceScore: 0,
+      englishProficiencyScore: 0,
     };
   }
 
@@ -87,6 +104,7 @@ export function computeFeedbackScores(
     leadershipScore: average(evaluations.map((item) => item.leadership)),
     problemSolvingScore: average(evaluations.map((item) => item.problemSolving)),
     confidenceScore: average(evaluations.map((item) => item.confidence)),
+    englishProficiencyScore: average(evaluations.map((item) => item.englishProficiency)),
   };
 }
 

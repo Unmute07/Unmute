@@ -33,10 +33,18 @@
       "Bash(ssh -T git@github.com -o StrictHostKeyChecking=accept-new)",
       "Bash(git ls-remote *)",
       "Bash(git remote *)",
-      "Bash(git add *)"
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)",
+      "WebFetch(domain:github.com)",
+      "Bash(echo \"EXIT_CODE=$?\")",
+      "Bash(ls -la ~/.ssh/ 2>&1 | grep -v known_hosts; echo \"---SSH CONFIG---\"; cat ~/.ssh/config 2>&1)",
+      "Bash(ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519_unmute -N \"\" -C \"shivani.gupta@athenaeducation.co.in\")",
+      "Bash(ssh -T git@github-unmute -o StrictHostKeyChecking=accept-new)"
     ],
     "additionalDirectories": [
-      "/private/tmp/claude-501/-Users-shivanigupta-unmute/825d8792-0300-45c2-9748-5b9a6f484952/scratchpad/node_modules"
+      "/private/tmp/claude-501/-Users-shivanigupta-unmute/825d8792-0300-45c2-9748-5b9a6f484952/scratchpad/node_modules",
+      "/Users/shivanigupta/.ssh"
     ]
   }
 }

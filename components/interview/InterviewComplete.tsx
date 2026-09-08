@@ -4,13 +4,17 @@ import { BrainCircuit, CheckCircle2, Sparkles } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import type { InterviewMode } from "@/types/interview";
 
 type InterviewCompleteProps = {
   onRestart: () => void;
   onViewFeedback: () => void;
+  mode?: InterviewMode;
 };
 
-export function InterviewComplete({ onRestart, onViewFeedback }: InterviewCompleteProps) {
+export function InterviewComplete({ onRestart, onViewFeedback, mode = "practice" }: InterviewCompleteProps) {
+  const isMock = mode === "mock";
+
   return (
     <Card className="border-border/70 bg-card/80 shadow-[0_16px_50px_rgba(15,23,42,0.08)]">
       <CardHeader className="space-y-3">
@@ -18,7 +22,7 @@ export function InterviewComplete({ onRestart, onViewFeedback }: InterviewComple
           <CheckCircle2 className="h-6 w-6" />
         </div>
         <div>
-          <CardTitle className="text-2xl">Practice session complete</CardTitle>
+          <CardTitle className="text-2xl">{isMock ? "Mock interview complete" : "Practice session complete"}</CardTitle>
           <CardDescription className="mt-2 text-base leading-7">
             Get your AI feedback on confidence, communication, and technical depth, or restart for another round.
           </CardDescription>
@@ -31,7 +35,7 @@ export function InterviewComplete({ onRestart, onViewFeedback }: InterviewComple
         </Button>
         <Button onClick={onRestart} variant="outline" className="rounded-full px-5">
           <Sparkles className="mr-2 h-4 w-4" />
-          Restart practice
+          {isMock ? "Restart mock interview" : "Restart practice"}
         </Button>
       </CardContent>
     </Card>
