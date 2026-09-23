@@ -20,7 +20,7 @@ export function WelcomeCard({
 }: WelcomeCardProps) {
   return (
     <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
-      <Card className="h-full overflow-hidden border-primary/15 bg-gradient-to-br from-primary/15 via-background to-secondary/15 shadow-sm">
+      <Card className="overflow-hidden border-primary/15 bg-gradient-to-br from-primary/8 via-background to-accent/70 shadow-sm">
         <CardContent className="flex flex-col gap-6 p-6 sm:p-8 lg:flex-row lg:items-end lg:justify-between">
           <div className="max-w-xl">
             <div className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-white/70 px-3 py-1 text-sm font-medium text-primary dark:bg-card/70">

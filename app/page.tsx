@@ -119,7 +119,7 @@ export default function Home() {
             transition={{ duration: 0.35 }}
           >
             <p className="text-sm font-semibold uppercase tracking-[0.24em] text-primary">About Unmute</p>
-            <h2 className="hero-title mt-4 max-w-2xl text-3xl sm:text-4xl">
+            <h2 className="hero-title mt-4 text-3xl sm:text-4xl">
               The bilingual, AI-powered way to walk into any interview ready.
             </h2>
 
@@ -128,17 +128,12 @@ export default function Home() {
                 <p>
                   Unmute is the market-leading bilingual, AI-powered interview coaching platform, built to help
                   students and young professionals walk into real interviews with confidence. It simulates realistic
-                  interview scenarios — from college admissions panels to job and internship interviews — giving
+                  interview scenarios from college admissions panels to job and internship interviews giving
                   users a low-pressure space to practice, stumble, and improve before it counts.
-                </p>
-                <p className="border-l-2 border-primary/40 pl-4 text-base font-medium leading-7 text-foreground">
-                  What sets Unmute apart from every other interview-prep tool on the market is its bilingual design,
-                  letting users prepare and receive feedback in the language they think best in, rather than forcing
-                  everything through English.
                 </p>
                 <p>
                   Powered by best-in-class AI, the platform delivers the most personalized, structured feedback
-                  available on content, clarity, and delivery after each session — making Unmute the smartest, most
+                  available on content, clarity, and delivery after each session making Unmute the smartest, most
                   effective way to turn interview prep from a nerve-wracking guessing game into a guided, repeatable
                   practice loop.
                 </p>
@@ -156,7 +151,7 @@ export default function Home() {
           >
             <p className="text-sm font-semibold uppercase tracking-[0.24em] text-primary">FAQ</p>
             <h2 className="hero-title mt-4 text-3xl sm:text-4xl">Frequently asked questions.</h2>
-            <div className="mt-8 max-w-3xl rounded-[1.75rem] border border-border/70 bg-card/60 px-6 shadow-sm sm:px-8">
+            <div className="mt-8 rounded-[1.75rem] border border-border/70 bg-card/60 px-6 shadow-sm sm:px-8">
               <Accordion type="single" collapsible>
                 {FAQS.map((faq, index) => (
                   <AccordionItem key={faq.question} value={`faq-${index}`}>
