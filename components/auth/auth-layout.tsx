@@ -12,6 +12,7 @@ type AuthLayoutProps = {
   footerText?: string;
   footerHref?: string;
   footerLinkText?: string;
+  heroParagraphs?: string[];
 };
 
 export function AuthLayout({
@@ -21,13 +22,14 @@ export function AuthLayout({
   footerText,
   footerHref,
   footerLinkText,
+  heroParagraphs,
 }: AuthLayoutProps) {
   return (
     <div className="min-h-screen bg-background">
       <div className="grid min-h-screen lg:grid-cols-[45%_55%]">
         <section className="hidden lg:flex">
-          <div className="relative flex w-full flex-col justify-between overflow-hidden bg-gradient-to-br from-primary/90 via-primary to-secondary p-10 text-white">
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.25),transparent_32%)]" />
+          <div className="relative flex w-full flex-col overflow-y-auto bg-gradient-to-br from-primary/90 via-primary to-secondary p-10 text-white">
+            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.25),transparent_32%)]" />
             <div className="relative z-10">
               <Link href="/" className="flex items-center gap-3">
                 <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white/15 backdrop-blur-sm">
@@ -36,20 +38,28 @@ export function AuthLayout({
                 <span className="text-lg font-semibold tracking-tight">Unmute</span>
               </Link>
 
-              <div className="mt-14 max-w-md">
+              <div className="mt-14">
                 <div className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-sm font-medium backdrop-blur-sm">
                   <Sparkles className="h-4 w-4" /> AI Interview Coach
                 </div>
-                <h1 className="mt-6 text-4xl font-semibold leading-tight tracking-tight">
+                <h1 className="mt-6 max-w-md text-4xl font-semibold leading-tight tracking-tight">
                   Prepare with clarity, confidence, and calm.
                 </h1>
-                <p className="mt-4 text-base leading-7 text-white/80">
-                  Practice realistic interview questions, receive actionable AI feedback, and build momentum with every session.
-                </p>
+                {heroParagraphs && heroParagraphs.length > 0 ? (
+                  <div className="mt-4 space-y-3 text-sm leading-7 text-white/80">
+                    {heroParagraphs.map((paragraph, index) => (
+                      <p key={index}>{paragraph}</p>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="mt-4 max-w-md text-base leading-7 text-white/80">
+                    Practice realistic interview questions, receive actionable AI feedback, and build momentum with every session.
+                  </p>
+                )}
               </div>
             </div>
 
-            <div className="relative z-10 rounded-[1.25rem] border border-white/20 bg-white/10 p-4 backdrop-blur-sm">
+            <div className="relative z-10 mt-auto shrink-0 rounded-[1.25rem] border border-white/20 bg-white/10 p-4 backdrop-blur-sm">
               <p className="text-sm font-medium text-white">Contact</p>
               <p className="mt-2 text-sm font-semibold text-white">Aarush Tadi</p>
               <p className="text-sm text-white/70">Founder, Unmute</p>
