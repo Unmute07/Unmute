@@ -163,7 +163,7 @@ function NewInterviewForm() {
     setError(null);
 
     try {
-      const effectiveDifficulty: QuestionDifficulty = isMock ? "Mixed" : values.difficulty;
+      const effectiveDifficulty: QuestionDifficulty = values.difficulty;
       const originalQuestionCount = getOriginalQuestionCount(values.questionCount);
 
       const avoidQuestions = isMock
@@ -250,7 +250,7 @@ function NewInterviewForm() {
             </h1>
             <p className="mt-3 text-base leading-7 text-muted-foreground">
               {isMock
-                ? "Tell us about the company and role, paste the job description, and Unmute will run a mixed-difficulty interview — working in live follow-up questions on your answers — with feedback at the end."
+                ? "Tell us about the company and role, paste the job description, and choose your difficulty — Unmute will run a realistic interview, working in live follow-up questions on your answers, with feedback at the end."
                 : "Tell us about the company and role, paste the job description, and choose your own difficulty and feedback style. Unmute will also work in live follow-up questions on your answers."}
             </p>
           </div>
@@ -342,28 +342,28 @@ function NewInterviewForm() {
                   {errors.questionCount ? <p className="text-sm text-destructive">{errors.questionCount.message}</p> : null}
                 </div>
 
-                {!isMock ? (
-                  <div className="space-y-2">
-                    <span className="text-sm font-medium text-foreground">Question difficulty</span>
-                    <p className="text-sm text-muted-foreground">Choose how challenging your practice questions should be.</p>
-                    <div className="flex flex-wrap gap-2">
-                      {QUESTION_DIFFICULTY_OPTIONS.map((option) => (
-                        <button
-                          key={option}
-                          type="button"
-                          onClick={() => setValue("difficulty", option, { shouldValidate: true })}
-                          className={`rounded-full border px-5 py-2 text-sm font-medium transition ${
-                            difficulty === option
-                              ? "border-primary bg-primary text-primary-foreground shadow-sm"
-                              : "border-border bg-background text-foreground hover:border-primary/50"
-                          }`}
-                        >
-                          {option}
-                        </button>
-                      ))}
-                    </div>
+                <div className="space-y-2">
+                  <span className="text-sm font-medium text-foreground">Question difficulty</span>
+                  <p className="text-sm text-muted-foreground">
+                    Choose how challenging your {isMock ? "mock interview" : "practice"} questions should be.
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {QUESTION_DIFFICULTY_OPTIONS.map((option) => (
+                      <button
+                        key={option}
+                        type="button"
+                        onClick={() => setValue("difficulty", option, { shouldValidate: true })}
+                        className={`rounded-full border px-5 py-2 text-sm font-medium transition ${
+                          difficulty === option
+                            ? "border-primary bg-primary text-primary-foreground shadow-sm"
+                            : "border-border bg-background text-foreground hover:border-primary/50"
+                        }`}
+                      >
+                        {option}
+                      </button>
+                    ))}
                   </div>
-                ) : null}
+                </div>
 
                 {!isMock ? (
                   <div className="rounded-[1.25rem] border border-border/70 bg-background/60 p-4 text-sm text-muted-foreground">

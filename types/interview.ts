@@ -4,7 +4,7 @@ import type { AnswerEvaluation, JobAnalysis, InterviewSummary } from "@/services
 export type InterviewStatus = "analyzing" | "completed";
 
 export type InterviewMode = "practice" | "mock";
-export const QUESTION_DIFFICULTY_OPTIONS = ["Medium", "Hard", "Mixed"] as const;
+export const QUESTION_DIFFICULTY_OPTIONS = ["Easy", "Medium", "Hard", "Mixed"] as const;
 export type QuestionDifficulty = (typeof QUESTION_DIFFICULTY_OPTIONS)[number];
 
 export const QUESTION_COUNT_OPTIONS = [5, 10] as const;

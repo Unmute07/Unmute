@@ -364,7 +364,8 @@ function getQuestionSplit(questionCount: QuestionCount, interviewType: string, i
 }
 
 const DIFFICULTY_INSTRUCTIONS: Record<string, string> = {
-  Medium: "All questions should be medium difficulty — solid, realistic questions for this experience level, not entry-level softballs.",
+  Easy: "All questions should be easy — foundational, single-concept questions that test basic understanding for this experience level. Avoid multi-part scenarios, trick questions, edge cases, or deep tradeoff discussions.",
+  Medium: "All questions should be medium difficulty — approachable, realistic questions for this experience level, favoring clear, well-scoped prompts over multi-part or heavily ambiguous ones.",
   Hard: "All questions should be hard — push into edge cases, ambiguity, deeper tradeoffs, and follow-up-worthy depth appropriate for this experience level.",
   Mixed: "Vary difficulty across medium and hard — no easy/entry-level softball questions.",
 };

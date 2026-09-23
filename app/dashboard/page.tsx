@@ -3,9 +3,9 @@
 import { useMemo } from "react";
 
 import { Header } from "@/components/dashboard/header";
+import { QuickActions } from "@/components/dashboard/quick-actions";
 import { Sidebar } from "@/components/dashboard/sidebar";
 import { WelcomeCard } from "@/components/dashboard/welcome-card";
-import { QuickActions } from "@/components/dashboard/quick-actions";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -33,22 +33,6 @@ export default function DashboardPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, userVersion]);
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-background text-foreground">
-        <div className="flex min-h-screen flex-col lg:flex-row">
-          <Sidebar />
-          <div className="flex flex-1 flex-col">
-            <Header title="Dashboard" subtitle="Your interview prep command center" />
-            <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-8 px-4 py-6 sm:px-6 lg:px-8">
-              <DashboardSkeleton />
-            </main>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen bg-background text-foreground">
       <div className="flex min-h-screen flex-col lg:flex-row">
@@ -56,8 +40,14 @@ export default function DashboardPage() {
         <div className="flex flex-1 flex-col">
           <Header title="Dashboard" subtitle="Your interview prep command center" />
           <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-8 px-4 py-6 sm:px-6 lg:px-8">
-            <WelcomeCard name={displayName} />
-            <QuickActions />
+            {loading ? (
+              <DashboardSkeleton />
+            ) : (
+              <>
+                <WelcomeCard name={displayName} />
+                <QuickActions />
+              </>
+            )}
           </main>
         </div>
       </div>
